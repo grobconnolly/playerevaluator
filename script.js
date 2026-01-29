@@ -43,6 +43,29 @@ function formatMoney(num) {
   return `$${Math.round(num / 1e6)}M`;
 }
 
+function formatMoneyFull(num) {
+  return "$" + Math.round(num).toLocaleString("en-US");
+}
+
+function multipleForRankGroup(group) {
+  if (group === "1-20") return 3.5;
+  if (group === "21-50") return 4.0;
+  return 5.0; // 51-100
+}
+
+function haircutForPosition(position) {
+  if (position === "RHP" || position === "LHP") return 0.15;
+  if (position === "C") return 0.07;
+  return 0.0;
+}
+
+function offerPer1Percent(projectedEarnings, group, position) {
+  const v1 = 0.01 * projectedEarnings;      // value of 1%
+  const m = multipleForRankGroup(group);    // target multiple
+  const h = haircutForPosition(position);   // risk haircut
+  return (v1 / m) * (1 - h);
+}
+
 // =============================
 // CORE ENGINE
 // =============================
@@ -78,12 +101,40 @@ document.getElementById("calcBtn").addEventListener("click", () => {
     return;
   }
 
+  const group = rankGroup(rank);
+
+  // Projected career earnings (nominal future $)
   const ev = projectCareerEarnings(rank, position);
 
+  // Value and pricing per 1%
+  const value1 = 0.01 * ev;
+  const offer1 = offerPer1Percent(ev, group, position);
+
+  // Top-line outputs
   document.getElementById("result").innerText = formatMoney(ev);
   document.getElementById("details").innerText =
-    `Rank group: ${rankGroup(rank)} • Position: ${position} • Model v1`;
+    `Rank group: ${group} • Position: ${position} • Model v1`;
 
+  document.getElementById("valuePer1").innerText = formatMoneyFull(value1);
+  document.getElementById("offerPer1").innerText = formatMoneyFull(offer1);
+
+  // Build 1%–5% table
+  const tbody = document.getElementById("pctTableBody");
+  tbody.innerHTML = "";
+
+  for (let pct = 1; pct <= 5; pct++) {
+    const expectedPayout = (pct / 100) * ev;
+    const offerAmount = pct * offer1;
+
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="fw-semibold">${pct}%</td>
+      <td>${formatMoneyFull(expectedPayout)}</td>
+      <td>${formatMoneyFull(offerAmount)}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  // Show output
   document.getElementById("output").classList.remove("d-none");
 });
-

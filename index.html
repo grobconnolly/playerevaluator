@@ -60,9 +60,38 @@
                 Calculate
               </button>
 
+              <!-- OUTPUT -->
               <div id="output" class="mt-4 pt-3 border-top border-secondary d-none">
                 <div class="display-6 fw-bold" id="result">$—</div>
-                <div class="text-secondary" id="details"></div>
+                <div class="text-secondary mb-3" id="details"></div>
+
+                <div class="row g-2 mb-3">
+                  <div class="col-6">
+                    <div class="p-3 rounded bg-black border border-secondary">
+                      <div class="text-secondary small">Value of 1%</div>
+                      <div class="fw-bold" id="valuePer1">$—</div>
+                    </div>
+                  </div>
+                  <div class="col-6">
+                    <div class="p-3 rounded bg-black border border-secondary">
+                      <div class="text-secondary small">Offer per 1%</div>
+                      <div class="fw-bold" id="offerPer1">$—</div>
+                    </div>
+                  </div>
+                </div>
+
+                <div class="table-responsive">
+                  <table class="table table-dark table-bordered align-middle mb-0">
+                    <thead>
+                      <tr>
+                        <th style="width: 70px;">%</th>
+                        <th>Expected payout</th>
+                        <th>Offer amount</th>
+                      </tr>
+                    </thead>
+                    <tbody id="pctTableBody"></tbody>
+                  </table>
+                </div>
               </div>
 
             </div>
