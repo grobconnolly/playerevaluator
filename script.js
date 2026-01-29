@@ -243,3 +243,4 @@ document.getElementById("calcBtn").addEventListener("click", () => {
 
   document.getElementById("output").classList.remove("d-none");
 });
+
