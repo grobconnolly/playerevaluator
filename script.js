@@ -180,7 +180,7 @@ document.getElementById("calcBtn").addEventListener("click", () => {
   document.getElementById("valuePer1").innerText = formatMoneyFull(value1);
 
   // MOIC-driven offers table
-  const moics = [2, 4, 6, 8, 10];
+  const moics = [10, 8, 6, 4, 2];
   const moicBody = document.getElementById("moicOfferBody");
   moicBody.innerHTML = "";
 
