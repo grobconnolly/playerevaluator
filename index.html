@@ -1,111 +1,76 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <title>Prospect Career Earnings Estimator</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+// =============================
+// OUTCOME PROBABILITIES (2012–2013 TOP-100)
+// rank_group × pos_type → bucket probabilities
+// =============================
+const BUCKET_ORDER = ["<$5M", "$5-25M", "$25-75M", "$75-150M", ">$150M"];
 
-  <!-- Bootstrap 5 -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  />
+// Data-driven from 2012+2013 Top-100
+const OUTCOME_PROBS = {
+  "1-20": {
+    "Hitter":  { "<$5M": 0.1333, "$5-25M": 0.0667, "$25-75M": 0.1333, "$75-150M": 0.2000, ">$150M": 0.4667 },
+    "Pitcher": { "<$5M": 0.1429, "$5-25M": 0.2381, "$25-75M": 0.2381, "$75-150M": 0.2381, ">$150M": 0.1429 },
+    "Catcher": { "<$5M": 0.2500, "$5-25M": 0.0000, "$25-75M": 0.7500, "$75-150M": 0.0000, ">$150M": 0.0000 }
+  },
+  "21-50": {
+    "Hitter":  { "<$5M": 0.3462, "$5-25M": 0.1923, "$25-75M": 0.1538, "$75-150M": 0.0769, ">$150M": 0.2308 },
+    "Pitcher": { "<$5M": 0.2188, "$5-25M": 0.2813, "$25-75M": 0.3750, "$75-150M": 0.0625, ">$150M": 0.0625 },
+    "Catcher": { "<$5M": 0.0000, "$5-25M": 0.0000, "$25-75M": 1.0000, "$75-150M": 0.0000, ">$150M": 0.0000 }
+  },
+  "51-100": {
+    "Hitter":  { "<$5M": 0.5854, "$5-25M": 0.0976, "$25-75M": 0.1463, "$75-150M": 0.1220, ">$150M": 0.0488 },
+    "Pitcher": { "<$5M": 0.4706, "$5-25M": 0.2353, "$25-75M": 0.1765, "$75-150M": 0.0784, ">$150M": 0.0392 },
+    "Catcher": { "<$5M": 0.3750, "$5-25M": 0.1250, "$25-75M": 0.5000, "$75-150M": 0.0000, ">$150M": 0.0000 }
+  }
+};
 
-  <!-- Custom styles -->
-  <link rel="stylesheet" href="styles.css" />
-</head>
-<body class="bg-dark text-light">
+// Sample sizes for transparency
+const OUTCOME_N = {
+  "1-20":  { "Hitter": 15, "Pitcher": 21, "Catcher": 4 },
+  "21-50": { "Hitter": 26, "Pitcher": 32, "Catcher": 2 },
+  "51-100": { "Hitter": 41, "Pitcher": 51, "Catcher": 8 }
+};
 
-  <div class="min-vh-100 d-flex align-items-center">
-    <div class="container py-5">
-      <div class="row justify-content-center">
-        <div class="col-12 text-center">
+// Fallback if a cell is thin/missing (rank_group only)
+const OUTCOME_FALLBACK = {
+  "1-20":  { "<$5M": 0.1500, "$5-25M": 0.1500, "$25-75M": 0.2500, "$75-150M": 0.2000, ">$150M": 0.2500 },
+  "21-50": { "<$5M": 0.2667, "$5-25M": 0.2333, "$25-75M": 0.3333, "$75-150M": 0.0500, ">$150M": 0.1167 },
+  "51-100": { "<$5M": 0.5100, "$5-25M": 0.1600, "$25-75M": 0.1900, "$75-150M": 0.0900, ">$150M": 0.0500 }
+};
 
-          <h1 class="fw-bold mb-2">Prospect Career Earnings Estimator</h1>
-          <p class="text-secondary mb-4">
-            Projected MLB career earnings based on rank and position
-          </p>
+function posTypeFromPosition(position) {
+  if (position === "RHP" || position === "LHP") return "Pitcher";
+  if (position === "C") return "Catcher";
+  return "Hitter";
+}
 
-          <div class="card app-card bg-dark text-light shadow-lg mx-auto">
-            <div class="card-body p-4 text-start">
+function pct(x) {
+  return `${Math.round(x * 100)}%`;
+}
 
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Prospect Rank (1–100)</label>
-                <input
-                  id="rank"
-                  type="number"
-                  class="form-control form-control-lg"
-                  min="1"
-                  max="100"
-                  placeholder="e.g. 17"
-                />
-              </div>
+function renderOutcomeProbabilities(rankGroup, position) {
+  const posType = posTypeFromPosition(position);
 
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Primary Position</label>
-                <select id="position" class="form-select form-select-lg">
-                  <option value="">Select position</option>
-                  <option value="3B">3B</option>
-                  <option value="SS">SS</option>
-                  <option value="OF">OF</option>
-                  <option value="RHP">RHP</option>
-                  <option value="LHP">LHP</option>
-                  <option value="1B">1B</option>
-                  <option value="2B">2B</option>
-                  <option value="C">C</option>
-                </select>
-              </div>
+  const cell = (OUTCOME_PROBS[rankGroup] && OUTCOME_PROBS[rankGroup][posType]) || null;
+  const probs = cell || OUTCOME_FALLBACK[rankGroup];
+  const n = (OUTCOME_N[rankGroup] && OUTCOME_N[rankGroup][posType]) || null;
 
-              <button id="calcBtn" class="btn btn-primary btn-lg w-100">
-                Calculate
-              </button>
+  const tbody = document.getElementById("probBody");
+  tbody.innerHTML = "";
 
-              <!-- OUTPUT -->
-              <div id="output" class="mt-4 pt-3 border-top border-secondary d-none">
-                <div class="display-6 fw-bold" id="result">$—</div>
-                <div class="text-secondary mb-3" id="details"></div>
+  for (const b of BUCKET_ORDER) {
+    const p = probs[b] ?? 0;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="fw-semibold">${b}</td>
+      <td>${pct(p)}</td>
+    `;
+    tbody.appendChild(tr);
+  }
 
-                <div class="row g-3 mb-4">
-                  <div class="col-md-6">
-                    <div class="p-3 rounded bg-black border border-secondary">
-                      <div class="text-secondary small">Projected Career Earnings</div>
-                      <div class="fw-bold fs-5" id="careerEarnings">$—</div>
-                    </div>
-                  </div>
-
-                  <div class="col-md-6">
-                    <div class="p-3 rounded bg-black border border-secondary">
-                      <div class="text-secondary small">Value of 1%</div>
-                      <div class="fw-bold fs-5" id="valuePer1">$—</div>
-                    </div>
-                  </div>
-                </div>
-
-                <div class="table-responsive">
-                  <table class="table table-dark table-bordered align-middle mb-0">
-                    <thead>
-                      <tr>
-                        <th style="width: 160px;">Expected MOIC</th>
-                        <th>Offer per 1%</th>
-                      </tr>
-                    </thead>
-                    <tbody id="moicOfferBody"></tbody>
-                  </table>
-                </div>
-              </div>
-
-            </div>
-          </div>
-
-          <p class="text-secondary mt-4 small mb-0">
-            Model v1. Estimates only. Not financial advice.
-          </p>
-
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <script src="script.js"></script>
-</body>
-</html>
+  const note = document.getElementById("probNote");
+  if (cell && n) {
+    note.innerText = `Based on 2012–2013 Top-100 comps for ${rankGroup} ${posType} (n=${n}).`;
+  } else {
+    note.innerText = `Based on 2012–2013 Top-100 comps for rank group ${rankGroup} (fallback).`;
+  }
+}

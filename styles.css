@@ -10,7 +10,7 @@ body {
 
 .app-card {
   width: 100%;
-  max-width: 650px; /* wider card */
+  max-width: 650px;
   border-radius: 16px;
   border: 1px solid #374151;
 }
