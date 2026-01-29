@@ -84,5 +84,6 @@ document.getElementById("calcBtn").addEventListener("click", () => {
   document.getElementById("details").innerText =
     `Rank group: ${rankGroup(rank)} • Position: ${position} • Model v1`;
 
- document.getElementById("output").classList.remove("d-none");
+  document.getElementById("output").classList.remove("d-none");
 });
+
