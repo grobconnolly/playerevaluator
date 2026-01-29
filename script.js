@@ -47,23 +47,8 @@ function formatMoneyFull(num) {
   return "$" + Math.round(num).toLocaleString("en-US");
 }
 
-function multipleForRankGroup(group) {
-  if (group === "1-20") return 3.5;
-  if (group === "21-50") return 4.0;
-  return 5.0; // 51-100
-}
-
-function haircutForPosition(position) {
-  if (position === "RHP" || position === "LHP") return 0.15;
-  if (position === "C") return 0.07;
-  return 0.0;
-}
-
-function offerPer1Percent(projectedEarnings, group, position) {
-  const v1 = 0.01 * projectedEarnings;      // value of 1%
-  const m = multipleForRankGroup(group);    // target multiple
-  const h = haircutForPosition(position);   // risk haircut
-  return (v1 / m) * (1 - h);
+function offerPer1ForMoic(valuePer1, moic) {
+  return valuePer1 / moic;
 }
 
 // =============================
@@ -106,31 +91,29 @@ document.getElementById("calcBtn").addEventListener("click", () => {
   // Projected career earnings (nominal future $)
   const ev = projectCareerEarnings(rank, position);
 
-  // Value and pricing per 1%
+  // Value of 1%
   const value1 = 0.01 * ev;
-  const offer1 = offerPer1Percent(ev, group, position);
 
   // Top-line outputs
   document.getElementById("result").innerText = formatMoney(ev);
   document.getElementById("details").innerText =
     `Rank group: ${group} • Position: ${position} • Model v1`;
 
+  document.getElementById("careerEarnings").innerText = formatMoneyFull(ev);
   document.getElementById("valuePer1").innerText = formatMoneyFull(value1);
-  document.getElementById("offerPer1").innerText = formatMoneyFull(offer1);
 
-  // Build 1%–5% table
-  const tbody = document.getElementById("pctTableBody");
+  // MOIC-driven offers table
+  const moics = [2, 4, 6, 8, 10];
+  const tbody = document.getElementById("moicOfferBody");
   tbody.innerHTML = "";
 
-  for (let pct = 1; pct <= 5; pct++) {
-    const expectedPayout = (pct / 100) * ev;
-    const offerAmount = pct * offer1;
+  for (const m of moics) {
+    const offer = offerPer1ForMoic(value1, m);
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
-      <td class="fw-semibold">${pct}%</td>
-      <td>${formatMoneyFull(expectedPayout)}</td>
-      <td>${formatMoneyFull(offerAmount)}</td>
+      <td class="fw-semibold">${m}×</td>
+      <td>${formatMoneyFull(offer)}</td>
     `;
     tbody.appendChild(tr);
   }
