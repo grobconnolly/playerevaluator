@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <title>Prospect Offer Tool</title>
+  <title>Prospect Offer Tool (v2)</title>
   <meta name="viewport" content="width=device-width, initial-scale=1" />
 
   <!-- Bootstrap 5 -->
@@ -22,7 +22,7 @@
 
           <h1 class="fw-bold mb-2">Prospect Offer Tool</h1>
           <p class="text-secondary mb-4">
-            Enter rank + position → see $ per 1% pricing by MOIC and implied probability of clearing MOIC.
+            Rank + position → expected earnings, value of 1%, offer per 1% by MOIC, and probability of ≥1.0× (break-even)
           </p>
 
           <div class="card app-card bg-dark text-light shadow-lg mx-auto">
@@ -68,7 +68,7 @@
                 <div class="row g-3 mb-4">
                   <div class="col-md-6">
                     <div class="p-3 rounded bg-black border border-secondary">
-                      <div class="text-secondary small">Expected Career Earnings</div>
+                      <div class="text-secondary small">Expected Career Earnings (avg across comps)</div>
                       <div class="fw-bold fs-5" id="careerEarnings">$—</div>
                     </div>
                   </div>
@@ -86,12 +86,12 @@
                   <table class="table table-dark table-bordered align-middle mb-0">
                     <thead>
                       <tr>
-                        <th style="width: 130px;">MOIC</th>
+                        <th style="width: 120px;">MOIC</th>
                         <th>Offer per 1%</th>
-                        <th style="width: 230px;">
-                          Probability of clearing MOIC
+                        <th style="width: 240px;">
+                          P(≥1.0× at this price)
                           <span class="text-secondary small d-block fw-normal">
-                           
+                            based on 2012–2013 Top-100 historical outcomes
                           </span>
                         </th>
                       </tr>
@@ -126,7 +126,7 @@
           </div>
 
           <p class="text-secondary mt-4 small mb-0">
-            Model v1. Directional underwriting tool — not a guarantee.
+            Model v2. Directional underwriting tool — not a guarantee.
           </p>
 
         </div>
@@ -134,7 +134,6 @@
     </div>
   </div>
 
-  <!-- bump v= to break cache when you update -->
-  <script src="script.js?v=12"></script>
+  <script src="script.js?v=20"></script>
 </body>
 </html>

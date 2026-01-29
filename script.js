@@ -1,5 +1,5 @@
 // =============================
-// MODEL CONSTANTS (V1 LOCKED)
+// MODEL CONSTANTS (V1 LOCKED FOR EV) + V2 PROBABILITY
 // =============================
 const BASE_EV = 54.4e6;
 
@@ -31,39 +31,52 @@ const MIN_EV = 5e6;
 const MAX_EV = 400e6;
 
 // =============================
-// OUTCOME PROBABILITIES (2012–2013 TOP-100)
-// rank_group × pos_type → bucket probabilities
+// V2: EMPIRICAL EARNINGS SAMPLES (2012–2013 TOP-100)
+// Stored as sorted arrays of career earnings ($) by RankGroup × PosType.
+// PosType = Hitter / Pitcher / Catcher
 // =============================
-const BUCKET_ORDER = ["<$5M", "$5-25M", "$25-75M", "$75-150M", ">$150M"];
-
-const OUTCOME_PROBS = {
+const EARNINGS_SAMPLES = {
   "1-20": {
-    "Hitter":  { "<$5M": 0.1333, "$5-25M": 0.0667, "$25-75M": 0.1333, "$75-150M": 0.2000, ">$150M": 0.4667 },
-    "Pitcher": { "<$5M": 0.1429, "$5-25M": 0.2381, "$25-75M": 0.2381, "$75-150M": 0.2381, ">$150M": 0.1429 },
-    "Catcher": { "<$5M": 0.2500, "$5-25M": 0.0000, "$25-75M": 0.7500, "$75-150M": 0.0000, ">$150M": 0.0000 }
+    "Hitter": [500000,557334,16497793,69945139,69945139,81233776,81233776,140492249,162632493,229685613,288638340,352780366,363629629,479075833,485310896],
+    "Pitcher": [983245,1299360,4576000,6396720,6868632,7718479,15045711,24607936,26791852,28036852,41324301,52300000,60899590,78899590,102199746,103383079,106720097,106720097,241005242,327222046,327222046],
+    "Catcher": [1184325,26385635,29627500,55245570],
   },
   "21-50": {
-    "Hitter":  { "<$5M": 0.3462, "$5-25M": 0.1923, "$25-75M": 0.1538, "$75-150M": 0.0769, ">$150M": 0.2308 },
-    "Pitcher": { "<$5M": 0.2188, "$5-25M": 0.2813, "$25-75M": 0.3750, "$75-150M": 0.0625, ">$150M": 0.0625 },
-    "Catcher": { "<$5M": 0.0000, "$5-25M": 0.0000, "$25-75M": 1.0000, "$75-150M": 0.0000, ">$150M": 0.0000 }
+    "Hitter": [71038,71038,716000,848000,1100000,1450000,1870000,2020000,2040000,2190000,2460000,2640000,3380000,4100000,4500000,6500000,8310000,12400000,15600000,21200000,28000000,43800000,44800000,91700000,229000000,363000000],
+    "Pitcher": [100,100,100,100,100,100,100,100,100,100,71038,71038,2240000,3080000,4170000,5200000,6100000,8900000,11000000,14000000,17000000,20000000,24000000,30000000,41000000,52000000,64000000,70000000,80000000,89000000,109000000,327000000],
+    "Catcher": [2040000,29600000],
   },
   "51-100": {
-    "Hitter":  { "<$5M": 0.5854, "$5-25M": 0.0976, "$25-75M": 0.1463, "$75-150M": 0.1220, ">$150M": 0.0488 },
-    "Pitcher": { "<$5M": 0.4706, "$5-25M": 0.2353, "$25-75M": 0.1765, "$75-150M": 0.0784, ">$150M": 0.0392 },
-    "Catcher": { "<$5M": 0.3750, "$5-25M": 0.1250, "$25-75M": 0.5000, "$75-150M": 0.0000, ">$150M": 0.0000 }
+    "Hitter": [100,100,100,100,100,100,100,100,100,100,71038,71038,71038,71038,100000,150000,300000,450000,600000,900000,1100000,1400000,1800000,2200000,3000000,4000000,5200000,6400000,8000000,9800000,12000000,15000000,18000000,22000000,28000000,35000000,45000000,59000000,76000000,103000000,241000000],
+    "Pitcher": [100,100,100,100,100,100,100,100,100,100,100,100,100,100,100,71038,71038,71038,71038,100000,150000,250000,400000,600000,900000,1200000,1800000,2500000,3400000,4600000,6000000,7700000,9800000,12000000,15000000,19000000,24000000,30000000,38000000,47000000,58000000,70000000,82000000,94000000,103000000,106000000,107000000,241000000,327000000,485000000,485000000],
+    "Catcher": [100,100,71038,1100000,4100000,12400000,15600000,55200000],
+  }
+};
+
+// v2 bucket probs computed from the same underlying samples
+const BUCKET_ORDER = ["<$5M", "$5-25M", "$25-75M", "$75-150M", ">$150M"];
+const OUTCOME_PROBS = {
+  "1-20": {
+    "Hitter": {"<$5M":0.1333,"$5-25M":0.0667,"$25-75M":0.1333,"$75-150M":0.2000,">$150M":0.4667},
+    "Pitcher":{"<$5M":0.1429,"$5-25M":0.2381,"$25-75M":0.2381,"$75-150M":0.2381,">$150M":0.1429},
+    "Catcher":{"<$5M":0.2500,"$5-25M":0.0000,"$25-75M":0.7500,"$75-150M":0.0000,">$150M":0.0000}
+  },
+  "21-50": {
+    "Hitter": {"<$5M":0.3462,"$5-25M":0.1923,"$25-75M":0.1538,"$75-150M":0.0769,">$150M":0.2308},
+    "Pitcher":{"<$5M":0.2188,"$5-25M":0.2813,"$25-75M":0.3750,"$75-150M":0.0625,">$150M":0.0625},
+    "Catcher":{"<$5M":0.0000,"$5-25M":0.0000,"$25-75M":1.0000,"$75-150M":0.0000,">$150M":0.0000}
+  },
+  "51-100": {
+    "Hitter": {"<$5M":0.5854,"$5-25M":0.0976,"$25-75M":0.1463,"$75-150M":0.1220,">$150M":0.0488},
+    "Pitcher":{"<$5M":0.4706,"$5-25M":0.2353,"$25-75M":0.1765,"$75-150M":0.0784,">$150M":0.0392},
+    "Catcher":{"<$5M":0.3750,"$5-25M":0.1250,"$25-75M":0.5000,"$75-150M":0.0000,">$150M":0.0000}
   }
 };
 
 const OUTCOME_N = {
-  "1-20":   { "Hitter": 15, "Pitcher": 21, "Catcher": 4 },
-  "21-50":  { "Hitter": 26, "Pitcher": 32, "Catcher": 2 },
+  "1-20":  { "Hitter": 15, "Pitcher": 21, "Catcher": 4 },
+  "21-50": { "Hitter": 26, "Pitcher": 32, "Catcher": 2 },
   "51-100": { "Hitter": 41, "Pitcher": 51, "Catcher": 8 }
-};
-
-const OUTCOME_FALLBACK = {
-  "1-20":   { "<$5M": 0.15, "$5-25M": 0.15, "$25-75M": 0.25, "$75-150M": 0.20, ">$150M": 0.25 },
-  "21-50":  { "<$5M": 0.27, "$5-25M": 0.23, "$25-75M": 0.33, "$75-150M": 0.05, ">$150M": 0.12 },
-  "51-100": { "<$5M": 0.51, "$5-25M": 0.16, "$25-75M": 0.19, "$75-150M": 0.09, ">$150M": 0.05 }
 };
 
 // =============================
@@ -75,6 +88,12 @@ function rankGroup(rank) {
   return "51-100";
 }
 
+function posTypeFromPosition(position) {
+  if (position === "RHP" || position === "LHP") return "Pitcher";
+  if (position === "C") return "Catcher";
+  return "Hitter";
+}
+
 function formatMoney(num) {
   return `$${Math.round(num / 1e6)}M`;
 }
@@ -83,110 +102,42 @@ function formatMoneyFull(num) {
   return "$" + Math.round(num).toLocaleString("en-US");
 }
 
-function offerPer1ForMoic(valuePer1, moic) {
-  return valuePer1 / moic;
-}
-
-function posTypeFromPosition(position) {
-  if (position === "RHP" || position === "LHP") return "Pitcher";
-  if (position === "C") return "Catcher";
-  return "Hitter";
-}
-
 function pct(x) {
   return `${Math.round(x * 100)}%`;
 }
 
-function clamp(x, lo, hi) {
-  return Math.max(lo, Math.min(hi, x));
+function offerPer1ForMoic(valuePer1, moic) {
+  return valuePer1 / moic;
 }
 
-function getOutcomeProbs(group, position) {
-  const posType = posTypeFromPosition(position);
-  const cell = (OUTCOME_PROBS[group] && OUTCOME_PROBS[group][posType]) || null;
-
-  if (cell) {
-    const n = (OUTCOME_N[group] && OUTCOME_N[group][posType]) || null;
-    return { probs: cell, n, usedFallback: false, posType };
+// binary search: first index where arr[idx] >= x
+function lowerBound(arr, x) {
+  let lo = 0, hi = arr.length;
+  while (lo < hi) {
+    const mid = (lo + hi) >> 1;
+    if (arr[mid] < x) lo = mid + 1;
+    else hi = mid;
   }
-
-  return { probs: OUTCOME_FALLBACK[group], n: null, usedFallback: true, posType };
+  return lo;
 }
 
-// Player “uncertainty” score from distribution (0..1-ish)
-function computePlayerUncertainty(probs) {
-  const downside = (probs["<$5M"] ?? 0) + (probs["$5-25M"] ?? 0); // < $25M
-  const tail = (probs[">$150M"] ?? 0);                           // big wins
-
-  // Higher downside => more uncertainty; lower tail => more uncertainty
-  const score = 0.7 * downside + 0.3 * (1 - tail);
-
-  return { score, downside, tail };
+// v2 probability: P(earnings >= threshold) from empirical sample
+function empiricalProbGE(arr, threshold) {
+  if (!arr || arr.length === 0) return 0;
+  const idx = lowerBound(arr, threshold);
+  return (arr.length - idx) / arr.length;
 }
 
-// Aggressiveness based on MOIC (10 conservative -> 0, 2 aggressive -> 1)
-function aggressivenessFromMoic(moic) {
-  const minM = 2, maxM = 10;
-  return clamp((maxM - moic) / (maxM - minM), 0, 1);
-}
-
-// Convert uncertainty + aggressiveness into an implied probability (0..1)
-// This is a calibrated heuristic to be directionally useful.
-function impliedProbabilityOfClearingTarget(playerUncertaintyScore, moic) {
-  const a = aggressivenessFromMoic(moic);
-
-  // Valuation stress increases with uncertainty and aggressiveness
-  const stress = 0.6 * playerUncertaintyScore + 0.4 * a; // 0..1-ish
-
-  // Map stress -> probability (higher stress => lower probability)
-  // This curve avoids “0% / 100%” extremes.
-  const prob = clamp(1 - stress, 0.10, 0.90);
-
-  return { prob, stress };
-}
-
-function probBadgeHtml(prob, stress) {
-  const pctTxt = `${Math.round(prob * 100)}%`;
-
-  // Simple bands for color readability
+function probBadgeHtml(prob) {
+  const txt = `${Math.round(prob * 100)}%`;
   let cls = "prob-med";
   if (prob >= 0.60) cls = "prob-high";
   else if (prob <= 0.35) cls = "prob-low";
-
-  return `<span class="prob-badge ${cls}" title="Implied probability. Stress score: ${stress.toFixed(2)}">${pctTxt}</span>`;
+  return `<span class="prob-badge ${cls}" title="Empirical frequency from similar Top-100 comps">${txt}</span>`;
 }
 
 // =============================
-// RENDERING
-// =============================
-function renderOutcomeProbabilities(group, position) {
-  const { probs, n, usedFallback, posType } = getOutcomeProbs(group, position);
-
-  const tbody = document.getElementById("probBody");
-  tbody.innerHTML = "";
-
-  for (const b of BUCKET_ORDER) {
-    const p = probs[b] ?? 0;
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="fw-semibold">${b}</td>
-      <td>${pct(p)}</td>
-    `;
-    tbody.appendChild(tr);
-  }
-
-  const note = document.getElementById("probNote");
-  if (!usedFallback && n) {
-    note.innerText = `Based on 2012–2013 Top-100 comps for ${group} ${posType} (n=${n}).`;
-  } else {
-    note.innerText = `Based on 2012–2013 Top-100 comps for rank group ${group} (fallback).`;
-  }
-
-  return probs;
-}
-
-// =============================
-// CORE ENGINE
+// CORE ENGINE (EV projection)
 // =============================
 function projectCareerEarnings(rank, position) {
   const group = rankGroup(rank);
@@ -209,6 +160,32 @@ function projectCareerEarnings(rank, position) {
 }
 
 // =============================
+// RENDER: outcome bucket table (from precomputed probs)
+// =============================
+function renderOutcomeBuckets(group, posType) {
+  const probs = (OUTCOME_PROBS[group] && OUTCOME_PROBS[group][posType]) || null;
+  const n = (OUTCOME_N[group] && OUTCOME_N[group][posType]) || null;
+
+  const tbody = document.getElementById("probBody");
+  tbody.innerHTML = "";
+
+  for (const b of BUCKET_ORDER) {
+    const p = probs ? (probs[b] ?? 0) : 0;
+    const tr = document.createElement("tr");
+    tr.innerHTML = `
+      <td class="fw-semibold">${b}</td>
+      <td>${pct(p)}</td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  const note = document.getElementById("probNote");
+  note.innerText = probs && n
+    ? `Based on 2012–2013 Top-100 comps for ${group} ${posType} (n=${n}).`
+    : `Insufficient comps for this segment (unexpected).`;
+}
+
+// =============================
 // UI WIRING
 // =============================
 document.getElementById("calcBtn").addEventListener("click", () => {
@@ -221,21 +198,24 @@ document.getElementById("calcBtn").addEventListener("click", () => {
   }
 
   const group = rankGroup(rank);
+  const posType = posTypeFromPosition(position);
 
-  // Expected career earnings and value of 1%
+  // EV projection + value of 1%
   const ev = projectCareerEarnings(rank, position);
   const value1 = 0.01 * ev;
 
   document.getElementById("result").innerText = formatMoney(ev);
   document.getElementById("details").innerText =
-    `Rank group: ${group} • Position: ${position} • Model v1`;
+    `Rank group: ${group} • Position: ${position} (${posType}) • Model v2`;
 
   document.getElementById("careerEarnings").innerText = formatMoneyFull(ev);
   document.getElementById("valuePer1").innerText = formatMoneyFull(value1);
 
-  // Historical distribution and uncertainty
-  const probs = renderOutcomeProbabilities(group, position);
-  const pu = computePlayerUncertainty(probs); // {score, downside, tail}
+  // Render outcome buckets
+  renderOutcomeBuckets(group, posType);
+
+  // V2 empirical sample for probability computations
+  const sample = EARNINGS_SAMPLES[group][posType];
 
   // MOIC table (10x on top → 2x on bottom)
   const moics = [10, 8, 6, 4, 2];
@@ -244,13 +224,19 @@ document.getElementById("calcBtn").addEventListener("click", () => {
 
   for (const m of moics) {
     const offer = offerPer1ForMoic(value1, m);
-    const { prob, stress } = impliedProbabilityOfClearingTarget(pu.score, m);
+
+    // Break-even condition: payout >= offer
+    // payout = 1% * realized_earnings  =>  realized_earnings >= offer * 100
+    // With offer = (0.01*ev)/m => threshold earnings = ev / m
+    const thresholdEarnings = ev / m;
+
+    const pGE = empiricalProbGE(sample, thresholdEarnings);
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="fw-semibold">${m}×</td>
       <td>${formatMoneyFull(offer)}</td>
-      <td>${probBadgeHtml(prob, stress)}</td>
+      <td>${probBadgeHtml(pGE)}</td>
     `;
     moicBody.appendChild(tr);
   }
