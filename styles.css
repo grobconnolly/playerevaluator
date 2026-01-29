@@ -34,3 +34,25 @@ body {
   border-color: #60a5fa;
   box-shadow: 0 0 0 0.25rem rgba(96, 165, 250, 0.15);
 }
+
+/* Risk pill */
+.risk-pill {
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  border: 1px solid #374151;
+  background: rgba(0,0,0,0.35);
+}
+
+.risk-low {
+  border-color: rgba(34, 197, 94, 0.6);
+}
+
+.risk-medium {
+  border-color: rgba(234, 179, 8, 0.6);
+}
+
+.risk-high {
+  border-color: rgba(239, 68, 68, 0.6);
+}

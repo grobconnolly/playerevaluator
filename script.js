@@ -36,7 +36,7 @@ const MAX_EV = 400e6;
 // =============================
 const BUCKET_ORDER = ["<$5M", "$5-25M", "$25-75M", "$75-150M", ">$150M"];
 
-// Data-driven (as currently defined for v1). You can replace with re-computed values later.
+// Current v1 distributions (you can replace with computed later)
 const OUTCOME_PROBS = {
   "1-20": {
     "Hitter":  { "<$5M": 0.1333, "$5-25M": 0.0667, "$25-75M": 0.1333, "$75-150M": 0.2000, ">$150M": 0.4667 },
@@ -55,14 +55,13 @@ const OUTCOME_PROBS = {
   }
 };
 
-// Sample sizes (for transparency)
 const OUTCOME_N = {
   "1-20":   { "Hitter": 15, "Pitcher": 21, "Catcher": 4 },
   "21-50":  { "Hitter": 26, "Pitcher": 32, "Catcher": 2 },
   "51-100": { "Hitter": 41, "Pitcher": 51, "Catcher": 8 }
 };
 
-// Fallback distribution if a cell is thin/missing (rank_group only)
+// Fallback distribution if missing (rank_group only)
 const OUTCOME_FALLBACK = {
   "1-20":   { "<$5M": 0.15, "$5-25M": 0.15, "$25-75M": 0.25, "$75-150M": 0.20, ">$150M": 0.25 },
   "21-50":  { "<$5M": 0.27, "$5-25M": 0.23, "$25-75M": 0.33, "$75-150M": 0.05, ">$150M": 0.12 },
@@ -100,12 +99,55 @@ function pct(x) {
   return `${Math.round(x * 100)}%`;
 }
 
-function renderOutcomeProbabilities(group, position) {
+// Returns { probs, n, usedFallback, posType }
+function getOutcomeProbs(group, position) {
   const posType = posTypeFromPosition(position);
-
   const cell = (OUTCOME_PROBS[group] && OUTCOME_PROBS[group][posType]) || null;
-  const probs = cell || OUTCOME_FALLBACK[group];
-  const n = (OUTCOME_N[group] && OUTCOME_N[group][posType]) || null;
+
+  if (cell) {
+    const n = (OUTCOME_N[group] && OUTCOME_N[group][posType]) || null;
+    return { probs: cell, n, usedFallback: false, posType };
+  }
+
+  return { probs: OUTCOME_FALLBACK[group], n: null, usedFallback: true, posType };
+}
+
+// Risk factor driven by distribution
+function computeRiskFactor(probs) {
+  const pUnder5 = probs["<$5M"] ?? 0;
+  const p5to25 = probs["$5-25M"] ?? 0;
+  const pOver150 = probs[">$150M"] ?? 0;
+
+  const downside = pUnder5 + p5to25;     // bust/low earnings mass
+  const tailDependence = 1 - pOver150;   // higher = fewer huge outcomes
+
+  // Score in [0,1] (roughly)
+  const score = 0.7 * downside + 0.3 * tailDependence;
+
+  let label = "Medium";
+  if (score < 0.40) label = "Low";
+  else if (score > 0.55) label = "High";
+
+  return { label, score, downside, pOver150 };
+}
+
+function renderRiskPill(risk) {
+  const pill = document.getElementById("riskPill");
+  pill.classList.remove("risk-low", "risk-medium", "risk-high");
+
+  pill.innerText = `Risk: ${risk.label}`;
+
+  if (risk.label === "Low") pill.classList.add("risk-low");
+  else if (risk.label === "High") pill.classList.add("risk-high");
+  else pill.classList.add("risk-medium");
+
+  // helpful hover tooltip without clutter
+  pill.title =
+    `Risk Score: ${risk.score.toFixed(2)} | Downside(<$25M): ${pct(risk.downside)} | Tail(>$150M): ${pct(risk.pOver150)}`;
+}
+
+function renderOutcomeProbabilities(group, position) {
+  const { probs, n, usedFallback, posType } = getOutcomeProbs(group, position);
 
   const tbody = document.getElementById("probBody");
   tbody.innerHTML = "";
@@ -121,11 +163,13 @@ function renderOutcomeProbabilities(group, position) {
   }
 
   const note = document.getElementById("probNote");
-  if (cell && n) {
+  if (!usedFallback && n) {
     note.innerText = `Based on 2012–2013 Top-100 comps for ${group} ${posType} (n=${n}).`;
   } else {
     note.innerText = `Based on 2012–2013 Top-100 comps for rank group ${group} (fallback).`;
   }
+
+  return probs; // return the distribution so we can compute risk factor from it
 }
 
 // =============================
@@ -179,7 +223,7 @@ document.getElementById("calcBtn").addEventListener("click", () => {
   document.getElementById("careerEarnings").innerText = formatMoneyFull(ev);
   document.getElementById("valuePer1").innerText = formatMoneyFull(value1);
 
-  // MOIC-driven offers table
+  // MOIC-driven offers table (10x on top → 2x on bottom)
   const moics = [10, 8, 6, 4, 2];
   const moicBody = document.getElementById("moicOfferBody");
   moicBody.innerHTML = "";
@@ -195,8 +239,10 @@ document.getElementById("calcBtn").addEventListener("click", () => {
     moicBody.appendChild(tr);
   }
 
-  // Outcome probabilities
-  renderOutcomeProbabilities(group, position);
+  // Outcome probabilities + risk factor
+  const probs = renderOutcomeProbabilities(group, position);
+  const risk = computeRiskFactor(probs);
+  renderRiskPill(risk);
 
   // Show output
   document.getElementById("output").classList.remove("d-none");
