@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Prospect Career Earnings Estimator</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+
+  <div class="container">
+    <h1>Prospect Career Earnings Estimator</h1>
+    <p class="subtitle">Projected MLB career earnings based on rank and position</p>
+
+    <div class="card">
+      <label>Prospect Rank (1–100)</label>
+      <input id="rank" type="number" min="1" max="100" />
+
+      <label>Primary Position</label>
+      <select id="position">
+        <option value="">Select position</option>
+        <option value="3B">3B</option>
+        <option value="SS">SS</option>
+        <option value="OF">OF</option>
+        <option value="RHP">RHP</option>
+        <option value="LHP">LHP</option>
+        <option value="1B">1B</option>
+        <option value="2B">2B</option>
+        <option value="C">C</option>
+      </select>
+
+      <button id="calcBtn">Calculate</button>
+
+      <div id="output" class="output" hidden>
+        <div class="value" id="result">$—</div>
+        <div class="meta" id="details"></div>
+      </div>
+    </div>
+
+    <footer>
+      Model v1. Estimates only. Not financial advice.
+    </footer>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
