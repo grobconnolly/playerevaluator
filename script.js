@@ -32,11 +32,9 @@ const MAX_EV = 400e6;
 
 // =============================
 // OUTCOME PROBABILITIES (2012–2013 TOP-100)
-// rank_group × pos_type → bucket probabilities
 // =============================
 const BUCKET_ORDER = ["<$5M", "$5-25M", "$25-75M", "$75-150M", ">$150M"];
 
-// Current v1 distributions (you can replace with computed later)
 const OUTCOME_PROBS = {
   "1-20": {
     "Hitter":  { "<$5M": 0.1333, "$5-25M": 0.0667, "$25-75M": 0.1333, "$75-150M": 0.2000, ">$150M": 0.4667 },
@@ -61,7 +59,6 @@ const OUTCOME_N = {
   "51-100": { "Hitter": 41, "Pitcher": 51, "Catcher": 8 }
 };
 
-// Fallback distribution if missing (rank_group only)
 const OUTCOME_FALLBACK = {
   "1-20":   { "<$5M": 0.15, "$5-25M": 0.15, "$25-75M": 0.25, "$75-150M": 0.20, ">$150M": 0.25 },
   "21-50":  { "<$5M": 0.27, "$5-25M": 0.23, "$25-75M": 0.33, "$75-150M": 0.05, ">$150M": 0.12 },
@@ -99,7 +96,6 @@ function pct(x) {
   return `${Math.round(x * 100)}%`;
 }
 
-// Returns { probs, n, usedFallback, posType }
 function getOutcomeProbs(group, position) {
   const posType = posTypeFromPosition(position);
   const cell = (OUTCOME_PROBS[group] && OUTCOME_PROBS[group][posType]) || null;
@@ -112,38 +108,39 @@ function getOutcomeProbs(group, position) {
   return { probs: OUTCOME_FALLBACK[group], n: null, usedFallback: true, posType };
 }
 
-// Risk factor driven by distribution
-function computeRiskFactor(probs) {
-  const pUnder5 = probs["<$5M"] ?? 0;
-  const p5to25 = probs["$5-25M"] ?? 0;
-  const pOver150 = probs[">$150M"] ?? 0;
+// Player-risk score from distribution (0..1-ish)
+function computePlayerRiskScore(probs) {
+  const downside = (probs["<$5M"] ?? 0) + (probs["$5-25M"] ?? 0);
+  const tail = (probs[">$150M"] ?? 0);
 
-  const downside = pUnder5 + p5to25;     // bust/low earnings mass
-  const tailDependence = 1 - pOver150;   // higher = fewer huge outcomes
-
-  // Score in [0,1] (roughly)
-  const score = 0.7 * downside + 0.3 * tailDependence;
-
-  let label = "Medium";
-  if (score < 0.40) label = "Low";
-  else if (score > 0.55) label = "High";
-
-  return { label, score, downside, pOver150 };
+  // higher downside => higher risk; lower tail => higher risk
+  const score = 0.7 * downside + 0.3 * (1 - tail);
+  return { score, downside, tail };
 }
 
-function renderRiskPill(risk) {
-  const pill = document.getElementById("riskPill");
-  pill.classList.remove("risk-low", "risk-medium", "risk-high");
+// Aggressiveness based on MOIC (10=conservative, 2=aggressive) mapped to 0..1
+function moicAggressiveness(moic) {
+  // 10x -> 0, 2x -> 1
+  const minM = 2, maxM = 10;
+  const x = (maxM - moic) / (maxM - minM);
+  return Math.max(0, Math.min(1, x));
+}
 
-  pill.innerText = `Risk: ${risk.label}`;
+// Valuation risk per row: combines player-risk + aggressiveness
+function valuationRiskForMoic(playerRiskScore, moic) {
+  const a = moicAggressiveness(moic);
+  const valScore = 0.6 * playerRiskScore + 0.4 * a;
 
-  if (risk.label === "Low") pill.classList.add("risk-low");
-  else if (risk.label === "High") pill.classList.add("risk-high");
-  else pill.classList.add("risk-medium");
+  let label = "Medium";
+  if (valScore < 0.45) label = "Low";
+  else if (valScore > 0.62) label = "High";
 
-  // helpful hover tooltip without clutter
-  pill.title =
-    `Risk Score: ${risk.score.toFixed(2)} | Downside(<$25M): ${pct(risk.downside)} | Tail(>$150M): ${pct(risk.pOver150)}`;
+  return { label, valScore };
+}
+
+function riskBadgeHtml(label, valScore) {
+  const cls = label === "Low" ? "risk-low" : label === "High" ? "risk-high" : "risk-medium";
+  return `<span class="risk-badge ${cls}" title="Valuation risk score: ${valScore.toFixed(2)}">${label}</span>`;
 }
 
 function renderOutcomeProbabilities(group, position) {
@@ -169,7 +166,7 @@ function renderOutcomeProbabilities(group, position) {
     note.innerText = `Based on 2012–2013 Top-100 comps for rank group ${group} (fallback).`;
   }
 
-  return probs; // return the distribution so we can compute risk factor from it
+  return probs;
 }
 
 // =============================
@@ -209,13 +206,10 @@ document.getElementById("calcBtn").addEventListener("click", () => {
 
   const group = rankGroup(rank);
 
-  // Projected career earnings (nominal future $)
+  // Expected career earnings
   const ev = projectCareerEarnings(rank, position);
-
-  // Value of 1%
   const value1 = 0.01 * ev;
 
-  // Top-line outputs
   document.getElementById("result").innerText = formatMoney(ev);
   document.getElementById("details").innerText =
     `Rank group: ${group} • Position: ${position} • Model v1`;
@@ -223,27 +217,27 @@ document.getElementById("calcBtn").addEventListener("click", () => {
   document.getElementById("careerEarnings").innerText = formatMoneyFull(ev);
   document.getElementById("valuePer1").innerText = formatMoneyFull(value1);
 
-  // MOIC-driven offers table (10x on top → 2x on bottom)
+  // Render probabilities and compute player-risk score
+  const probs = renderOutcomeProbabilities(group, position);
+  const pr = computePlayerRiskScore(probs); // {score, downside, tail}
+
+  // MOIC-driven offers table (10x on top)
   const moics = [10, 8, 6, 4, 2];
   const moicBody = document.getElementById("moicOfferBody");
   moicBody.innerHTML = "";
 
   for (const m of moics) {
     const offer = offerPer1ForMoic(value1, m);
+    const vr = valuationRiskForMoic(pr.score, m);
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="fw-semibold">${m}×</td>
       <td>${formatMoneyFull(offer)}</td>
+      <td>${riskBadgeHtml(vr.label, vr.valScore)}</td>
     `;
     moicBody.appendChild(tr);
   }
 
-  // Outcome probabilities + risk factor
-  const probs = renderOutcomeProbabilities(group, position);
-  const risk = computeRiskFactor(probs);
-  renderRiskPill(risk);
-
-  // Show output
   document.getElementById("output").classList.remove("d-none");
 });
