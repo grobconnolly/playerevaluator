@@ -32,6 +32,7 @@ const MAX_EV = 400e6;
 
 // =============================
 // OUTCOME PROBABILITIES (2012–2013 TOP-100)
+// rank_group × pos_type → bucket probabilities
 // =============================
 const BUCKET_ORDER = ["<$5M", "$5-25M", "$25-75M", "$75-150M", ">$150M"];
 
@@ -96,6 +97,10 @@ function pct(x) {
   return `${Math.round(x * 100)}%`;
 }
 
+function clamp(x, lo, hi) {
+  return Math.max(lo, Math.min(hi, x));
+}
+
 function getOutcomeProbs(group, position) {
   const posType = posTypeFromPosition(position);
   const cell = (OUTCOME_PROBS[group] && OUTCOME_PROBS[group][posType]) || null;
@@ -108,41 +113,52 @@ function getOutcomeProbs(group, position) {
   return { probs: OUTCOME_FALLBACK[group], n: null, usedFallback: true, posType };
 }
 
-// Player-risk score from distribution (0..1-ish)
-function computePlayerRiskScore(probs) {
-  const downside = (probs["<$5M"] ?? 0) + (probs["$5-25M"] ?? 0);
-  const tail = (probs[">$150M"] ?? 0);
+// Player “uncertainty” score from distribution (0..1-ish)
+function computePlayerUncertainty(probs) {
+  const downside = (probs["<$5M"] ?? 0) + (probs["$5-25M"] ?? 0); // < $25M
+  const tail = (probs[">$150M"] ?? 0);                           // big wins
 
-  // higher downside => higher risk; lower tail => higher risk
+  // Higher downside => more uncertainty; lower tail => more uncertainty
   const score = 0.7 * downside + 0.3 * (1 - tail);
+
   return { score, downside, tail };
 }
 
-// Aggressiveness based on MOIC (10=conservative, 2=aggressive) mapped to 0..1
-function moicAggressiveness(moic) {
-  // 10x -> 0, 2x -> 1
+// Aggressiveness based on MOIC (10 conservative -> 0, 2 aggressive -> 1)
+function aggressivenessFromMoic(moic) {
   const minM = 2, maxM = 10;
-  const x = (maxM - moic) / (maxM - minM);
-  return Math.max(0, Math.min(1, x));
+  return clamp((maxM - moic) / (maxM - minM), 0, 1);
 }
 
-// Valuation risk per row: combines player-risk + aggressiveness
-function valuationRiskForMoic(playerRiskScore, moic) {
-  const a = moicAggressiveness(moic);
-  const valScore = 0.6 * playerRiskScore + 0.4 * a;
+// Convert uncertainty + aggressiveness into an implied probability (0..1)
+// This is a calibrated heuristic to be directionally useful.
+function impliedProbabilityOfClearingTarget(playerUncertaintyScore, moic) {
+  const a = aggressivenessFromMoic(moic);
 
-  let label = "Medium";
-  if (valScore < 0.45) label = "Low";
-  else if (valScore > 0.62) label = "High";
+  // Valuation stress increases with uncertainty and aggressiveness
+  const stress = 0.6 * playerUncertaintyScore + 0.4 * a; // 0..1-ish
 
-  return { label, valScore };
+  // Map stress -> probability (higher stress => lower probability)
+  // This curve avoids “0% / 100%” extremes.
+  const prob = clamp(1 - stress, 0.10, 0.90);
+
+  return { prob, stress };
 }
 
-function riskBadgeHtml(label, valScore) {
-  const cls = label === "Low" ? "risk-low" : label === "High" ? "risk-high" : "risk-medium";
-  return `<span class="risk-badge ${cls}" title="Valuation risk score: ${valScore.toFixed(2)}">${label}</span>`;
+function probBadgeHtml(prob, stress) {
+  const pctTxt = `${Math.round(prob * 100)}%`;
+
+  // Simple bands for color readability
+  let cls = "prob-med";
+  if (prob >= 0.60) cls = "prob-high";
+  else if (prob <= 0.35) cls = "prob-low";
+
+  return `<span class="prob-badge ${cls}" title="Implied probability. Stress score: ${stress.toFixed(2)}">${pctTxt}</span>`;
 }
 
+// =============================
+// RENDERING
+// =============================
 function renderOutcomeProbabilities(group, position) {
   const { probs, n, usedFallback, posType } = getOutcomeProbs(group, position);
 
@@ -206,7 +222,7 @@ document.getElementById("calcBtn").addEventListener("click", () => {
 
   const group = rankGroup(rank);
 
-  // Expected career earnings
+  // Expected career earnings and value of 1%
   const ev = projectCareerEarnings(rank, position);
   const value1 = 0.01 * ev;
 
@@ -217,24 +233,24 @@ document.getElementById("calcBtn").addEventListener("click", () => {
   document.getElementById("careerEarnings").innerText = formatMoneyFull(ev);
   document.getElementById("valuePer1").innerText = formatMoneyFull(value1);
 
-  // Render probabilities and compute player-risk score
+  // Historical distribution and uncertainty
   const probs = renderOutcomeProbabilities(group, position);
-  const pr = computePlayerRiskScore(probs); // {score, downside, tail}
+  const pu = computePlayerUncertainty(probs); // {score, downside, tail}
 
-  // MOIC-driven offers table (10x on top)
+  // MOIC table (10x on top → 2x on bottom)
   const moics = [10, 8, 6, 4, 2];
   const moicBody = document.getElementById("moicOfferBody");
   moicBody.innerHTML = "";
 
   for (const m of moics) {
     const offer = offerPer1ForMoic(value1, m);
-    const vr = valuationRiskForMoic(pr.score, m);
+    const { prob, stress } = impliedProbabilityOfClearingTarget(pu.score, m);
 
     const tr = document.createElement("tr");
     tr.innerHTML = `
       <td class="fw-semibold">${m}×</td>
       <td>${formatMoneyFull(offer)}</td>
-      <td>${riskBadgeHtml(vr.label, vr.valScore)}</td>
+      <td>${probBadgeHtml(prob, stress)}</td>
     `;
     moicBody.appendChild(tr);
   }

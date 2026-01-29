@@ -10,7 +10,7 @@ body {
 
 .app-card {
   width: 100%;
-  max-width: 650px;
+  max-width: 700px;
   border-radius: 16px;
   border: 1px solid #374151;
 }
@@ -34,8 +34,8 @@ body {
   box-shadow: 0 0 0 0.25rem rgba(96, 165, 250, 0.15);
 }
 
-/* Valuation risk badge */
-.risk-badge {
+/* Probability badge */
+.prob-badge {
   display: inline-block;
   padding: 4px 10px;
   border-radius: 999px;
@@ -45,7 +45,6 @@ body {
   background: rgba(0,0,0,0.35);
 }
 
-.risk-low { border-color: rgba(34,197,94,0.6); }
-.risk-medium { border-color: rgba(234,179,8,0.6); }
-.risk-high { border-color: rgba(239,68,68,0.6); }
-
+.prob-high { border-color: rgba(34,197,94,0.6); }    /* greener */
+.prob-med  { border-color: rgba(234,179,8,0.6); }    /* yellow */
+.prob-low  { border-color: rgba(239,68,68,0.6); }    /* red */
