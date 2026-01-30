@@ -34,7 +34,7 @@ const MODEL_DATA = {
         '51-75': {
             'SS': 988,
             '3B': 551,
-            'OF': 257,
+            'OF': 800,  // Updated: 3.1x increase based on Judge/Tucker/2017-2019 data
             'Pitcher': 448,
             'C': 528,
             '2B': 400,
@@ -43,7 +43,7 @@ const MODEL_DATA = {
         '76-100': {
             'SS': 728,
             '3B': 552,
-            'OF': 203,
+            'OF': 650,  // Updated: 3.2x increase based on Soto ($765M)/Judge/2017-2019 data
             'Pitcher': 402,
             'C': 63,
             '2B': 300,
@@ -134,7 +134,7 @@ const MODEL_DATA = {
         '51-75': {
             'SS': { low: 70, mid: 95, high: 125 },
             '3B': { low: 60, mid: 85, high: 110 },
-            'OF': { low: 45, mid: 65, high: 85 },
+            'OF': { low: 80, mid: 115, high: 160 },  // Updated: 3.1x increase for Judge/Tucker market
             'Pitcher': { low: 50, mid: 70, high: 90 },
             'C': { low: 40, mid: 60, high: 80 },
             '2B': { low: 45, mid: 65, high: 85 },
@@ -143,7 +143,7 @@ const MODEL_DATA = {
         '76-100': {
             'SS': { low: 55, mid: 75, high: 100 },
             '3B': { low: 45, mid: 65, high: 85 },
-            'OF': { low: 25, mid: 35, high: 50 },
+            'OF': { low: 60, mid: 85, high: 125 },  // Updated: 3.2x increase for Soto/Judge market
             'Pitcher': { low: 35, mid: 50, high: 70 },
             'C': { low: 20, mid: 30, high: 45 },
             '2B': { low: 30, mid: 45, high: 65 },
@@ -275,10 +275,17 @@ function generateInsights(rank, position, results) {
         });
     }
     
+    if (position === 'OF' && rank >= 51 && rank <= 75) {
+        insights.push({
+            icon: '🚀',
+            text: `OF surge: 51-75 OFs outperforming historical data by 3x. Aaron Judge (#61, $394M) and Kyle Tucker (#63, $277M) validate higher valuations.`
+        });
+    }
+    
     if (position === 'OF' && rank >= 76) {
         insights.push({
-            icon: '⚠️',
-            text: `High risk: OFs ranked 76-100 only have ${(results.mlbProb * 100).toFixed(0)}% MLB rate. Only invest if prospect is rising fast.`
+            icon: '💎',
+            text: `OF lottery: 76-100 OFs trending up. Juan Soto (#95, $765M) and Judge show potential. Still high risk but increased upside.`
         });
     }
     
