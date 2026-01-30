@@ -240,11 +240,19 @@ body {
 /* Risk Assessment Text */
 #positionRiskDetail,
 #rankRiskDetail {
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
 }
 
 .card-body h6 {
-    color: var(--text-primary);
+    color: var(--text-primary) !important;
+}
+
+.card-body p {
+    color: var(--text-primary) !important;
+}
+
+.text-muted {
+    color: #a0a4b8 !important;
 }
 
 /* Footer */
