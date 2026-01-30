@@ -140,6 +140,15 @@ body {
     transform: translateY(0);
 }
 
+/* Alert Warning */
+.alert-warning {
+    background: rgba(255, 214, 10, 0.15);
+    border: 1px solid rgba(255, 214, 10, 0.5);
+    color: var(--warning-color);
+    border-radius: 8px;
+    margin-bottom: 1.5rem;
+}
+
 /* Stat Cards */
 .stat-card {
     background: linear-gradient(135deg, rgba(67, 97, 238, 0.1) 0%, rgba(114, 9, 183, 0.1) 100%);
@@ -239,6 +248,12 @@ body {
     color: #ffffff;
     font-size: 0.95rem;
     line-height: 1.6;
+}
+
+/* Warning insight styling */
+.insight-item:first-child {
+    border-left-color: var(--danger-color);
+    background: rgba(239, 71, 111, 0.15);
 }
 
 .card-body h6 {

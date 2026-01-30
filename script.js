@@ -1,5 +1,5 @@
 // FRONT ROW CAPITAL PARTNERS - Prospect Valuation Model v5.0
-// Professional Fund Director Decision Tool
+// Professional Investment Decision Tool
 // Updated: January 2026 - DEDUPLICATED DATA
 
 /*
@@ -17,6 +17,7 @@
  * - Sample sizes reduced by ~38% (removed duplicates)
  * - Expected values adjusted to reflect unique players only
  * - More accurate representation of historical performance
+ * - Added confidence level warnings for low sample sizes
  */
 
 const MODEL_DATA = {
@@ -25,242 +26,198 @@ const MODEL_DATA = {
     // Pitchers = LHP + RHP combined
     expectedValues: {
         "Top 10": {
-                "SS": 1652,
-                "3B": 2238,
-                "OF": 1877,
-                "Pitcher": 848,
-                "C": 552,
-                "2B": 0,
-                "1B": 5721
+            "SS": 1652,
+            "3B": 2238,
+            "OF": 1877,
+            "Pitcher": 848,
+            "C": 552,
+            "2B": 0,
+            "1B": 5721
         },
         "11-25": {
-                "SS": 1508,
-                "3B": 2219,
-                "OF": 528,
-                "Pitcher": 448,
-                "C": 268,
-                "2B": 185,
-                "1B": 981
+            "SS": 1508,
+            "3B": 2219,
+            "OF": 528,
+            "Pitcher": 448,
+            "C": 268,
+            "2B": 185,
+            "1B": 981
         },
         "26-50": {
-                "SS": 395,
-                "3B": 695,
-                "OF": 425,
-                "Pitcher": 309,
-                "C": 244,
-                "2B": 238,
-                "1B": 799
+            "SS": 395,
+            "3B": 695,
+            "OF": 425,
+            "Pitcher": 309,
+            "C": 244,
+            "2B": 238,
+            "1B": 799
         },
         "51-75": {
-                "SS": 462,
-                "3B": 317,
-                "OF": 230,
-                "Pitcher": 269,
-                "C": 274,
-                "2B": 276,
-                "1B": 628
+            "SS": 462,
+            "3B": 317,
+            "OF": 230,
+            "Pitcher": 269,
+            "C": 274,
+            "2B": 276,
+            "1B": 628
         },
         "76-100": {
-                "SS": 247,
-                "3B": 52,
-                "OF": 66,
-                "Pitcher": 190,
-                "C": 236,
-                "2B": 52,
-                "1B": 218
+            "SS": 247,
+            "3B": 52,
+            "OF": 66,
+            "Pitcher": 190,
+            "C": 236,
+            "2B": 52,
+            "1B": 218
         }
-},
+    },
     
     // MLB Success Rates (earned $5M+)
     mlbSuccessRates: {
         "Top 10": {
-                "SS": 0.929,
-                "3B": 1.0,
-                "OF": 0.833,
-                "Pitcher": 0.9,
-                "C": 1.0,
-                "2B": 0,
-                "1B": 1.0
+            "SS": 0.929,
+            "3B": 1.0,
+            "OF": 0.833,
+            "Pitcher": 0.9,
+            "C": 1.0,
+            "2B": 0,
+            "1B": 1.0
         },
         "11-25": {
-                "SS": 0.75,
-                "3B": 1.0,
-                "OF": 0.833,
-                "Pitcher": 0.667,
-                "C": 0.667,
-                "2B": 0.8,
-                "1B": 0.667
+            "SS": 0.75,
+            "3B": 1.0,
+            "OF": 0.833,
+            "Pitcher": 0.667,
+            "C": 0.667,
+            "2B": 0.8,
+            "1B": 0.667
         },
         "26-50": {
-                "SS": 0.5,
-                "3B": 0.75,
-                "OF": 0.571,
-                "Pitcher": 0.619,
-                "C": 1.0,
-                "2B": 0.833,
-                "1B": 1.0
+            "SS": 0.5,
+            "3B": 0.75,
+            "OF": 0.571,
+            "Pitcher": 0.619,
+            "C": 1.0,
+            "2B": 0.833,
+            "1B": 1.0
         },
         "51-75": {
-                "SS": 0.727,
-                "3B": 0.8,
-                "OF": 0.375,
-                "Pitcher": 0.443,
-                "C": 0.5,
-                "2B": 0.5,
-                "1B": 0.667
+            "SS": 0.727,
+            "3B": 0.8,
+            "OF": 0.375,
+            "Pitcher": 0.443,
+            "C": 0.5,
+            "2B": 0.5,
+            "1B": 0.667
         },
         "76-100": {
-                "SS": 0.364,
-                "3B": 0.3,
-                "OF": 0.25,
-                "Pitcher": 0.421,
-                "C": 0.6,
-                "2B": 0.25,
-                "1B": 0.5
+            "SS": 0.364,
+            "3B": 0.3,
+            "OF": 0.25,
+            "Pitcher": 0.421,
+            "C": 0.6,
+            "2B": 0.25,
+            "1B": 0.5
         }
-},
+    },
     
     // MLB Star Rates (earned $50M+)
     mlbStarRates: {
         "Top 10": {
-                "SS": 0.643,
-                "3B": 0.625,
-                "OF": 0.833,
-                "Pitcher": 0.5,
-                "C": 1.0,
-                "2B": 0,
-                "1B": 1.0
+            "SS": 0.643,
+            "3B": 0.625,
+            "OF": 0.833,
+            "Pitcher": 0.5,
+            "C": 1.0,
+            "2B": 0,
+            "1B": 1.0
         },
         "11-25": {
-                "SS": 0.75,
-                "3B": 0.667,
-                "OF": 0.167,
-                "Pitcher": 0.37,
-                "C": 0.167,
-                "2B": 0.0,
-                "1B": 0.333
+            "SS": 0.75,
+            "3B": 0.667,
+            "OF": 0.167,
+            "Pitcher": 0.37,
+            "C": 0.167,
+            "2B": 0.0,
+            "1B": 0.333
         },
         "26-50": {
-                "SS": 0.25,
-                "3B": 0.25,
-                "OF": 0.357,
-                "Pitcher": 0.175,
-                "C": 0.143,
-                "2B": 0.0,
-                "1B": 0.5
+            "SS": 0.25,
+            "3B": 0.25,
+            "OF": 0.357,
+            "Pitcher": 0.175,
+            "C": 0.143,
+            "2B": 0.0,
+            "1B": 0.5
         },
         "51-75": {
-                "SS": 0.364,
-                "3B": 0.2,
-                "OF": 0.125,
-                "Pitcher": 0.197,
-                "C": 0.2,
-                "2B": 0.333,
-                "1B": 0.333
+            "SS": 0.364,
+            "3B": 0.2,
+            "OF": 0.125,
+            "Pitcher": 0.197,
+            "C": 0.2,
+            "2B": 0.333,
+            "1B": 0.333
         },
         "76-100": {
-                "SS": 0.182,
-                "3B": 0.0,
-                "OF": 0.0,
-                "Pitcher": 0.105,
-                "C": 0.1,
-                "2B": 0.0,
-                "1B": 0.167
+            "SS": 0.182,
+            "3B": 0.0,
+            "OF": 0.0,
+            "Pitcher": 0.105,
+            "C": 0.1,
+            "2B": 0.0,
+            "1B": 0.167
         }
-},
+    },
     
     // Sample sizes (unique players per tier/position)
     sampleSizes: {
         "Top 10": {
-                "SS": 14,
-                "3B": 8,
-                "OF": 6,
-                "Pitcher": 10,
-                "C": 1,
-                "2B": 0,
-                "1B": 1
+            "SS": 14,
+            "3B": 8,
+            "OF": 6,
+            "Pitcher": 10,
+            "C": 1,
+            "2B": 0,
+            "1B": 1
         },
         "11-25": {
-                "SS": 4,
-                "3B": 6,
-                "OF": 6,
-                "Pitcher": 27,
-                "C": 6,
-                "2B": 5,
-                "1B": 3
+            "SS": 4,
+            "3B": 6,
+            "OF": 6,
+            "Pitcher": 27,
+            "C": 6,
+            "2B": 5,
+            "1B": 3
         },
         "26-50": {
-                "SS": 8,
-                "3B": 8,
-                "OF": 14,
-                "Pitcher": 63,
-                "C": 7,
-                "2B": 6,
-                "1B": 6
+            "SS": 8,
+            "3B": 8,
+            "OF": 14,
+            "Pitcher": 63,
+            "C": 7,
+            "2B": 6,
+            "1B": 6
         },
         "51-75": {
-                "SS": 11,
-                "3B": 10,
-                "OF": 16,
-                "Pitcher": 61,
-                "C": 10,
-                "2B": 6,
-                "1B": 3
+            "SS": 11,
+            "3B": 10,
+            "OF": 16,
+            "Pitcher": 61,
+            "C": 10,
+            "2B": 6,
+            "1B": 3
         },
         "76-100": {
-                "SS": 11,
-                "3B": 10,
-                "OF": 28,
-                "Pitcher": 57,
-                "C": 10,
-                "2B": 4,
-                "1B": 6
+            "SS": 11,
+            "3B": 10,
+            "OF": 28,
+            "Pitcher": 57,
+            "C": 10,
+            "2B": 4,
+            "1B": 6
         }
-},
-    
-    // Standardized MOIC targets for offers
-    moicTargets: {
-        "Top 10": [
-                3.5,
-                5.0,
-                7.5,
-                10.0,
-                15.0,
-                20.0
-        ],
-        "11-25": [
-                3.5,
-                5.0,
-                7.5,
-                10.0,
-                15.0,
-                20.0
-        ],
-        "26-50": [
-                3.5,
-                5.0,
-                7.5,
-                10.0,
-                15.0,
-                20.0
-        ],
-        "51-75": [
-                3.5,
-                5.0,
-                7.5,
-                10.0,
-                15.0,
-                20.0
-        ],
-        "76-100": [
-                3.5,
-                5.0,
-                7.5,
-                10.0,
-                15.0,
-                20.0
-        ]
-}
+    }
 };
 
 // Helper functions
@@ -282,6 +239,12 @@ function getTier(rank) {
     return '76-100';
 }
 
+function getConfidenceLevel(sampleSize) {
+    if (sampleSize >= 10) return { level: 'HIGH', color: '#06d6a0' };
+    if (sampleSize >= 5) return { level: 'MEDIUM', color: '#ffd60a' };
+    return { level: 'LOW', color: '#ef476f' };
+}
+
 function calculateValuation(rank, position) {
     const tier = getTier(rank);
     
@@ -292,12 +255,14 @@ function calculateValuation(rank, position) {
     // Get rates
     const mlbProb = MODEL_DATA.mlbSuccessRates[tier][position] || 0;
     const starProb = MODEL_DATA.mlbStarRates[tier][position] || 0;
+    const sampleSize = MODEL_DATA.sampleSizes[tier][position] || 0;
     
     return {
         expected1pct: expected1pct,
         mlbProb: mlbProb,
         starProb: starProb,
-        tier: tier
+        tier: tier,
+        sampleSize: sampleSize
     };
 }
 
@@ -324,6 +289,15 @@ function generateOffers(expected1pct) {
 function generateInsights(rank, position, results) {
     const insights = [];
     const tier = results.tier;
+    const confidence = getConfidenceLevel(results.sampleSize);
+    
+    // Sample size warning (first if low)
+    if (confidence.level === 'LOW') {
+        insights.push({
+            icon: '🚨',
+            text: `LOW CONFIDENCE: Only ${results.sampleSize} historical player(s) in ${tier} ${position}. Expected values are statistically unreliable. Requires risk committee approval.`
+        });
+    }
     
     // MLB Success insight
     if (results.mlbProb >= 0.80) {
@@ -362,7 +336,12 @@ function generateInsights(rank, position, results) {
     } else if (results.starProb > 0) {
         insights.push({
             icon: '💫',
-            text: `Star potential: ${(results.starProb * 100).toFixed(0)}% became stars. Some upside exists but most returns will come from solid MLB careers.`
+            text: `Limited star potential: ${(results.starProb * 100).toFixed(0)}% became stars. Most returns will come from solid MLB careers rather than superstars.`
+        });
+    } else {
+        insights.push({
+            icon: '📉',
+            text: `No historical stars (0%) in this tier/position combination. Very limited upside - consider avoiding or requiring extreme MOIC targets.`
         });
     }
     
@@ -377,24 +356,24 @@ function generateInsights(rank, position, results) {
     if (rank >= 26 && rank <= 50) {
         insights.push({
             icon: '📊',
-            text: `Sweet spot: Balanced risk/return tier. Target 7.5-10x MOIC. Excellent for portfolio diversification across positions.`
+            text: `Sweet spot tier: Balanced risk/return. Target 7.5-10x MOIC. Excellent for portfolio diversification across positions.`
         });
     }
     
     if (rank > 75) {
         insights.push({
             icon: '🎰',
-            text: `Lottery tickets: Require 15-20x MOICs. Need 10+ positions at this tier to offset risk through portfolio approach.`
+            text: `Lottery ticket tier: Require 15-20x MOICs minimum. Need 10+ positions at this tier to offset risk through portfolio approach.`
         });
     }
     
-    // Fund director guidance
-    const offer_at_7_5x = results.expected1pct / (7.5 * 1000);
-    const offer_at_10x = results.expected1pct / (10.0 * 1000);
+    // Investment guidance
+    const offer_at_7_5x = results.expected1pct / 7.5;
+    const offer_at_10x = results.expected1pct / 10.0;
     
     insights.push({
         icon: '💼',
-        text: `Fund guidance: Sweet spot ${formatCurrency(offer_at_7_5x)} (7.5x MOIC) to ${formatCurrency(offer_at_10x)} (10x MOIC). Model v5.0 with deduplicated data.`
+        text: `Recommended offer range: ${formatCurrency(offer_at_10x)} (10x MOIC) to ${formatCurrency(offer_at_7_5x)} (7.5x MOIC) per 1% ownership.`
     });
     
     return insights;
@@ -430,19 +409,35 @@ function calculate() {
     // Calculate
     const results = calculateValuation(rank, position);
     const tier = results.tier;
+    const sampleSize = results.sampleSize;
+    const confidence = getConfidenceLevel(sampleSize);
     
     // Check if we have data for this combination
-    const sampleSize = MODEL_DATA.sampleSizes[tier][position] || 0;
     if (sampleSize === 0) {
         alert(`No historical data available for ${tier} ${position} prospects. Please try a different combination.`);
         return;
+    }
+    
+    // Show/hide confidence warning
+    const warningDiv = document.getElementById('confidenceWarning');
+    const warningText = document.getElementById('warningText');
+    
+    if (confidence.level === 'LOW') {
+        warningText.textContent = `This ${tier} ${position} combination has only ${sampleSize} historical player(s). Expected values are statistically unreliable and should not be used for deal-making without explicit risk acknowledgment.`;
+        warningDiv.style.display = 'block';
+    } else {
+        warningDiv.style.display = 'none';
     }
     
     // Update summary cards
     document.getElementById('mlbSuccessRate').textContent = `${(results.mlbProb * 100).toFixed(1)}%`;
     document.getElementById('mlbStarRate').textContent = `${(results.starProb * 100).toFixed(1)}%`;
     document.getElementById('expected1pct').textContent = formatCurrency(results.expected1pct);
-    document.getElementById('riskTier').textContent = tier;
+    
+    // Update confidence level with color
+    const confidenceEl = document.getElementById('confidenceLevel');
+    confidenceEl.textContent = confidence.level;
+    confidenceEl.style.color = confidence.color;
     
     // Display record count
     document.getElementById('recordCount').textContent = sampleSize;

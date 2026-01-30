@@ -12,8 +12,8 @@
         <!-- Header -->
         <div class="header text-center">
             <h1>⚾ Front Row Capital Partners</h1>
-            <p class="lead">Minor League Prospect Investment Model v5.0</p>
-            <p class="text-muted">Professional fund director decision tool with deduplicated historical data (2012-2019)</p>
+            <p class="lead">Prospect Investment Valuation Model v5.0</p>
+            <p class="text-muted">Professional decision tool with deduplicated historical data (495 unique players, 2012-2019)</p>
         </div>
 
         <!-- Input Card -->
@@ -47,6 +47,11 @@
                     <button id="calculateBtn" class="btn btn-primary">Calculate Valuation</button>
                 </div>
             </div>
+        </div>
+
+        <!-- Confidence Warning (hidden by default) -->
+        <div id="confidenceWarning" class="alert alert-warning" style="display: none;">
+            <strong>⚠️ Low Confidence Warning:</strong> <span id="warningText"></span>
         </div>
 
         <!-- Results Section -->
@@ -99,13 +104,13 @@
                     <div class="card stat-card h-100">
                         <div class="card-body">
                             <div class="stat-label">
-                                RISK TIER
+                                CONFIDENCE
                                 <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" 
-                                      title="Prospect ranking tier. Lower tiers have lower MLB success rates but can offer higher MOICs. Top 10 = safest, 76-100 = lottery tickets.">
+                                      title="Data confidence level based on sample size. HIGH (n≥10), MEDIUM (n=5-9), LOW (n<5). Low confidence combinations require additional risk review.">
                                     <i class="info-circle">i</i>
                                 </span>
                             </div>
-                            <div class="stat-value" id="riskTier">--</div>
+                            <div class="stat-value" id="confidenceLevel">--</div>
                         </div>
                     </div>
                 </div>
@@ -113,7 +118,7 @@
                     <div class="card stat-card h-100">
                         <div class="card-body">
                             <div class="stat-label">
-                                RECORDS
+                                SAMPLE SIZE
                                 <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" 
                                       title="Number of unique historical players (2012-2019) in this tier/position. Each player counted once at final ranking. Larger sample = more reliable projections.">
                                     <i class="info-circle">i</i>
@@ -177,7 +182,7 @@
             <!-- Insights Card -->
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0">Fund Director Insights</h5>
+                    <h5 class="mb-0">Investment Insights</h5>
                 </div>
                 <div class="card-body">
                     <div id="insightsContent">
@@ -190,7 +195,7 @@
         <!-- Footer -->
         <div class="footer text-center">
             <p class="text-muted">
-                Model v5.0 | Deduplicated Data | Last Year Ranking Rule<br>
+                Front Row Capital Partners Model v5.0 | Deduplicated Data | Last Year Ranking Rule<br>
                 Based on 495 unique prospects (2012-2019) | Each player counted once at final ranking
             </p>
         </div>
