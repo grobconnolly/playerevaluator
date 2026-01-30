@@ -242,7 +242,7 @@ function generateInsights(rank, position, results) {
     if (rank <= 10 && position === 'SS') {
         insights.push({
             icon: '💎',
-            text: `Market comp: Jesus Made (#4 SS) signed for $225K per 1%. Tatis (#8 SS) signed for $200K. Your range: $${offerRange.low}K-$${offerRange.high}K is validated.`
+            text: `Market comp: Jesus Made (#4 SS) signed for $225K per 1%. Tatis (#8 SS) signed for $200K. Your range: ${offerRange.low}K-${offerRange.high}K is validated.`
         });
     }
     
@@ -250,7 +250,7 @@ function generateInsights(rank, position, results) {
     if (position === 'SS' && rank <= 25) {
         insights.push({
             icon: '⭐',
-            text: `Premium position: SS in top 25 have ${(results.mlbProb * 100).toFixed(0)}% MLB success rate and average career $${(results.projectedCareer / 1000000).toFixed(0)}M.`
+            text: `Premium position: SS in top 25 have ${(results.mlbProb * 100).toFixed(0)}% MLB success rate and average career ${(results.projectedCareer / 1000000).toFixed(0)}M.`
         });
     }
     
@@ -309,7 +309,7 @@ function generateInsights(rank, position, results) {
     const expectedMOIC = results.expected1pct / midOffer;
     insights.push({
         icon: '💰',
-        text: `Expected return: At $${offerRange.mid}K (midpoint), you target ${expectedMOIC.toFixed(1)}x MOIC. Market-validated pricing.`
+        text: `Expected return: At ${offerRange.mid}K (midpoint), you target ${expectedMOIC.toFixed(1)}x MOIC. Market-validated pricing.`
     });
     
     return insights;
