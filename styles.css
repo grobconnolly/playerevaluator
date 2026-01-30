@@ -226,6 +226,7 @@ body {
     border-left: 3px solid var(--primary-color);
     background: rgba(67, 97, 238, 0.05);
     border-radius: 4px;
+    color: var(--text-primary);
 }
 
 .insight-icon {
@@ -234,6 +235,16 @@ body {
     height: 24px;
     margin-right: 0.5rem;
     vertical-align: middle;
+}
+
+/* Risk Assessment Text */
+#positionRiskDetail,
+#rankRiskDetail {
+    color: var(--text-primary);
+}
+
+.card-body h6 {
+    color: var(--text-primary);
 }
 
 /* Footer */
