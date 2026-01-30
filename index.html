@@ -1,139 +1,155 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <title>Prospect Offer Tool (v2)</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-
-  <!-- Bootstrap 5 -->
-  <link
-    href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css"
-    rel="stylesheet"
-  />
-
-  <link rel="stylesheet" href="styles.css" />
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Front Row Capital - Prospect Offer Tool</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="styles.css">
 </head>
-<body class="bg-dark text-light">
-
-  <div class="min-vh-100 d-flex align-items-center">
-    <div class="container py-5">
-      <div class="row justify-content-center">
-        <div class="col-12 text-center">
-
-          <h1 class="fw-bold mb-2">Prospect Offer Tool</h1>
-          <p class="text-secondary mb-4">
-            Rank + position → expected earnings, value of 1%, offer per 1% by MOIC, and probability of ≥1.0× (break-even)
-          </p>
-
-          <div class="card app-card bg-dark text-light shadow-lg mx-auto">
-            <div class="card-body p-4 text-start">
-
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Prospect Rank (1–100)</label>
-                <input
-                  id="rank"
-                  type="number"
-                  class="form-control form-control-lg"
-                  min="1"
-                  max="100"
-                  placeholder="e.g. 17"
-                />
-              </div>
-
-              <div class="mb-3">
-                <label class="form-label fw-semibold">Primary Position</label>
-                <select id="position" class="form-select form-select-lg">
-                  <option value="">Select position</option>
-                  <option value="3B">3B</option>
-                  <option value="SS">SS</option>
-                  <option value="OF">OF</option>
-                  <option value="RHP">RHP</option>
-                  <option value="LHP">LHP</option>
-                  <option value="1B">1B</option>
-                  <option value="2B">2B</option>
-                  <option value="C">C</option>
-                </select>
-              </div>
-
-              <button id="calcBtn" class="btn btn-primary btn-lg w-100">
-                Calculate
-              </button>
-
-              <!-- OUTPUT -->
-              <div id="output" class="mt-4 pt-3 border-top border-secondary d-none">
-
-                <div class="display-6 fw-bold" id="result">$—</div>
-                <div class="text-secondary mb-3" id="details"></div>
-
-                <div class="row g-3 mb-4">
-                  <div class="col-md-6">
-                    <div class="p-3 rounded bg-black border border-secondary">
-                      <div class="text-secondary small">Expected Career Earnings</div>
-                      <div class="fw-bold fs-5" id="careerEarnings">$—</div>
-                    </div>
-                  </div>
-
-                  <div class="col-md-6">
-                    <div class="p-3 rounded bg-black border border-secondary">
-                      <div class="text-secondary small">Value of 1%</div>
-                      <div class="fw-bold fs-5" id="valuePer1">$—</div>
-                    </div>
-                  </div>
-                </div>
-
-                <!-- MOIC + Probability -->
-                <div class="table-responsive mb-4">
-                  <table class="table table-dark table-bordered align-middle mb-0">
-                    <thead>
-                      <tr>
-                        <th style="width: 120px;">MOIC</th>
-                        <th>Offer per 1%</th>
-                        <th style="width: 240px;">
-                          Odds of >1.0x
-                          <span class="text-secondary small d-block fw-normal">
-                            
-                          </span>
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody id="moicOfferBody"></tbody>
-                  </table>
-                </div>
-
-                <!-- Outcome probabilities -->
-                <div class="pt-3 border-top border-secondary">
-                  <div class="fw-semibold mb-2">Historical outcome distribution (career earnings)</div>
-                  <div class="table-responsive">
-                    <table class="table table-dark table-bordered align-middle mb-0">
-                      <thead>
-                        <tr>
-                          <th>Outcome bucket</th>
-                          <th style="width: 140px;">Probability</th>
-                        </tr>
-                      </thead>
-                      <tbody id="probBody"></tbody>
-                    </table>
-                  </div>
-                  <div class="text-secondary small mt-2" id="probNote"></div>
-                  <div class="text-secondary small mt-1">
-                    Note: expected earnings are an average; most players earn less than the average while a few stars earn far more.
-                  </div>
-                </div>
-
-              </div>
-
-            </div>
-          </div>
-
-          <p class="text-secondary mt-4 small mb-0">
-            Model v2. Directional underwriting tool — not a guarantee.
-          </p>
-
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header text-center">
+            <h1>Prospect Offer Tool</h1>
+            <p class="subtitle">Rank + position → expected earnings, value of 1%, offer per 1% by MOIC, and probability of ≥1.0× (break-even)</p>
         </div>
-      </div>
-    </div>
-  </div>
 
-  <script src="script.js?v=20"></script>
+        <!-- Input Card -->
+        <div class="card input-card">
+            <div class="card-body">
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <label for="prospectRank" class="form-label">Prospect Rank (1-100)</label>
+                        <input type="number" class="form-control" id="prospectRank" placeholder="e.g. 17" min="1" max="100">
+                        <div class="invalid-feedback">Please enter a rank between 1 and 100</div>
+                    </div>
+                    <div class="col-md-6">
+                        <label for="primaryPosition" class="form-label">Primary Position</label>
+                        <select class="form-select" id="primaryPosition">
+                            <option value="">Select position</option>
+                            <option value="SS">Shortstop (SS)</option>
+                            <option value="3B">Third Base (3B)</option>
+                            <option value="OF">Outfield (OF)</option>
+                            <option value="C">Catcher (C)</option>
+                            <option value="2B">Second Base (2B)</option>
+                            <option value="1B">First Base (1B)</option>
+                            <option value="Pitcher">Pitcher</option>
+                        </select>
+                        <div class="invalid-feedback">Please select a position</div>
+                    </div>
+                </div>
+                <div class="mt-4 text-center">
+                    <button class="btn btn-primary btn-lg" id="calculateBtn">Calculate</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div id="resultsSection" class="results-section" style="display: none;">
+            <!-- Summary Cards -->
+            <div class="row g-3 mb-4">
+                <div class="col-md-3">
+                    <div class="card stat-card">
+                        <div class="card-body text-center">
+                            <div class="stat-label">Projected Career</div>
+                            <div class="stat-value" id="projectedCareer">$0M</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card">
+                        <div class="card-body text-center">
+                            <div class="stat-label">MLB Success Rate</div>
+                            <div class="stat-value" id="mlbSuccessRate">0%</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card">
+                        <div class="card-body text-center">
+                            <div class="stat-label">Expected 1% Value</div>
+                            <div class="stat-value" id="expected1pct">$0K</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card stat-card">
+                        <div class="card-body text-center">
+                            <div class="stat-label">Break-Even Prob</div>
+                            <div class="stat-value" id="breakEvenProb">0%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Offer Table -->
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Offer Ranges by Target MOIC</h5>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover offer-table">
+                            <thead>
+                                <tr>
+                                    <th>Target MOIC</th>
+                                    <th>Per 1%</th>
+                                    <th>Per 5%</th>
+                                    <th>Per 10%</th>
+                                    <th>Expected Return</th>
+                                </tr>
+                            </thead>
+                            <tbody id="offerTableBody">
+                                <!-- Populated by JavaScript -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Key Insights -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Key Insights</h5>
+                </div>
+                <div class="card-body">
+                    <div id="insightsContent">
+                        <!-- Populated by JavaScript -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Risk Assessment -->
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Risk Assessment</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <h6>Position Risk</h6>
+                            <div id="positionRisk" class="risk-badge"></div>
+                            <p class="text-muted small mt-2" id="positionRiskDetail"></p>
+                        </div>
+                        <div class="col-md-6">
+                            <h6>Rank Tier Risk</h6>
+                            <div id="rankRisk" class="risk-badge"></div>
+                            <p class="text-muted small mt-2" id="rankRiskDetail"></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Footer -->
+        <div class="footer text-center mt-5">
+            <p class="text-muted">Model v2. Directional underwriting tool — not a guarantee.</p>
+            <p class="text-muted small">Based on analysis of 502 prospects (2012-2016 cohorts) with 3.5% annual salary inflation</p>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>

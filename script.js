@@ -1,261 +1,346 @@
-// =============================
-// MODEL CONSTANTS (EV PROJECTION)
-// =============================
-const BASE_EV = 54.4e6;
-
-const RANK_EV = {
-  "1-20": 115.1e6,
-  "21-50": 48.0e6,
-  "51-100": 33.9e6
+// Model Data - Based on historical analysis
+const MODEL_DATA = {
+    // Average career earnings by tier (2012 baseline, in millions)
+    tierAverages: {
+        'Top 10': 131.7,
+        '11-25': 73.3,
+        '26-50': 41.3,
+        '51-75': 31.2,
+        '76-100': 26.1
+    },
+    
+    // MLB success rates by tier
+    successRates: {
+        'Top 10': 0.92,
+        '11-25': 0.787,
+        '26-50': 0.704,
+        '51-75': 0.456,
+        '76-100': 0.417
+    },
+    
+    // Position multipliers by tier
+    positionMultipliers: {
+        'SS': {
+            'Top 10': 1.62,
+            '11-25': 2.11,
+            '26-50': 1.14,
+            '51-75': 1.0,
+            '76-100': 1.0
+        },
+        '3B': {
+            'Top 10': 1.26,
+            '11-25': 2.65,
+            '26-50': 1.11,
+            '51-75': 1.0,
+            '76-100': 1.0
+        },
+        'OF': {
+            'Top 10': 1.12,
+            '11-25': 1.14,
+            '26-50': 1.41,
+            '51-75': 1.0,
+            '76-100': 1.0
+        },
+        'Pitcher': {
+            'Top 10': 0.55,
+            '11-25': 0.70,
+            '26-50': 0.83,
+            '51-75': 1.0,
+            '76-100': 1.0
+        },
+        'C': {
+            'Top 10': 0.42,
+            '11-25': 0.32,
+            '26-50': 0.31,
+            '51-75': 1.0,
+            '76-100': 1.0
+        },
+        '2B': {
+            'Top 10': 1.0,
+            '11-25': 1.0,
+            '26-50': 1.0,
+            '51-75': 1.0,
+            '76-100': 1.0
+        },
+        '1B': {
+            'Top 10': 1.0,
+            '11-25': 1.0,
+            '26-50': 1.0,
+            '51-75': 1.0,
+            '76-100': 1.0
+        }
+    },
+    
+    // Constants
+    inflationMultiplier: 1.51, // 2012 to 2025 (3.5% annual)
+    targetMOICs: [3.5, 5.0, 7.5, 10.0]
 };
 
-const POS_EV = {
-  "3B": 128.6e6,
-  "SS": 86.6e6,
-  "OF": 56.6e6,
-  "RHP": 45.0e6,
-  "LHP": 38.1e6,
-  "1B": 37.2e6,
-  "2B": 29.4e6,
-  "C": 27.7e6
-};
-
-const W_RANK = 0.7;
-const W_POS  = 0.3;
-
-const CALIBRATION_K = 0.91;
-const HIST_UPLIFT   = 1.55;
-const FWD_GROWTH    = 1.30;
-
-const MIN_EV = 5e6;
-const MAX_EV = 400e6;
-
-// =============================
-// v2: EMPIRICAL CAREER EARNINGS SAMPLES
-// Derived from your uploaded 2012 + 2013 top-100 CSVs.
-// Segment = RankGroup × PosType (Hitter / Pitcher / Catcher)
-// =============================
-const EARNINGS_SAMPLES = {
-  "1-20": {
-    "Hitter": [
-      100, 71038, 716000, 848000, 1100000, 1450000, 2020000, 2460000, 8310000, 21200000,
-      43800000, 69945139, 81233776, 229685613, 485310896
-    ],
-    "Pitcher": [
-      100, 71038, 716000, 848000, 1100000, 1450000, 1870000, 2020000, 2190000, 3380000,
-      4100000, 6500000, 15600000, 28036852, 41324301, 52300000, 78899590, 103383079,
-      106720097, 241005242, 327222046
-    ],
-    "Catcher": [1184325, 26385635, 29627500, 55245570]
-  },
-
-  "21-50": {
-    "Hitter": [
-      100, 71038, 716000, 848000, 1100000, 1450000, 1870000, 2020000, 2040000, 2190000,
-      2460000, 2640000, 3380000, 4100000, 4500000, 6500000, 8310000, 12400000, 15600000,
-      21200000, 28000000, 43800000, 44800000, 91700000, 229000000, 363000000
-    ],
-    "Pitcher": [
-      100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
-      71038, 71038, 2240000, 3080000, 4170000, 5200000, 6100000, 8900000, 11000000,
-      14000000, 17000000, 20000000, 24000000, 30000000, 41000000, 52000000, 64000000,
-      70000000, 80000000, 89000000, 109000000, 327000000
-    ],
-    "Catcher": [2040000, 29600000]
-  },
-
-  "51-100": {
-    "Hitter": [
-      100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
-      71038, 71038, 71038, 71038, 100000, 150000, 300000, 450000, 600000, 900000,
-      1100000, 1400000, 1800000, 2200000, 3000000, 4000000, 5200000, 6400000, 8000000,
-      9800000, 12000000, 15000000, 18000000, 22000000, 28000000, 35000000, 45000000,
-      59000000, 76000000, 103000000, 241000000
-    ],
-    "Pitcher": [
-      100, 100, 100, 100, 100, 100, 100, 100, 100, 100,
-      100, 100, 100, 100, 100, 71038, 71038, 71038, 71038, 100000,
-      150000, 250000, 400000, 600000, 900000, 1200000, 1800000, 2500000, 3400000,
-      4600000, 6000000, 7700000, 9800000, 12000000, 15000000, 19000000, 24000000,
-      30000000, 38000000, 47000000, 58000000, 70000000, 82000000, 94000000,
-      103000000, 106000000, 107000000, 241000000, 327000000, 485310896, 485310896
-    ],
-    "Catcher": [100, 100, 71038, 1100000, 4100000, 12400000, 15600000, 55245570]
-  }
-};
-
-// Bucket table (for display)
-const BUCKET_ORDER = ["<$5M", "$5-25M", "$25-75M", "$75-150M", ">$150M"];
-function bucketProbsFromSample(sample) {
-  const n = sample.length;
-  const p = { "<$5M":0, "$5-25M":0, "$25-75M":0, "$75-150M":0, ">$150M":0 };
-  for (const x of sample) {
-    if (x < 5e6) p["<$5M"]++;
-    else if (x < 25e6) p["$5-25M"]++;
-    else if (x < 75e6) p["$25-75M"]++;
-    else if (x < 150e6) p["$75-150M"]++;
-    else p[">$150M"]++;
-  }
-  for (const k of Object.keys(p)) p[k] = p[k] / n;
-  return p;
+// Get tier based on rank
+function getTier(rank) {
+    if (rank <= 10) return 'Top 10';
+    if (rank <= 25) return '11-25';
+    if (rank <= 50) return '26-50';
+    if (rank <= 75) return '51-75';
+    return '76-100';
 }
 
-// =============================
-// HELPERS
-// =============================
-function rankGroup(rank) {
-  if (rank <= 20) return "1-20";
-  if (rank <= 50) return "21-50";
-  return "51-100";
+// Format currency
+function formatCurrency(amount, decimals = 0) {
+    if (amount >= 1000000) {
+        return `$${(amount / 1000000).toFixed(1)}M`;
+    } else if (amount >= 1000) {
+        return `$${Math.round(amount / 1000)}K`;
+    }
+    return `$${Math.round(amount)}`;
 }
 
-function posTypeFromPosition(position) {
-  if (position === "RHP" || position === "LHP") return "Pitcher";
-  if (position === "C") return "Catcher";
-  return "Hitter";
+// Calculate expected value
+function calculateExpectedValue(rank, position) {
+    const tier = getTier(rank);
+    const baseEarnings = MODEL_DATA.tierAverages[tier] * 1000000; // Convert to dollars
+    const posMultiplier = MODEL_DATA.positionMultipliers[position][tier];
+    const mlbProb = MODEL_DATA.successRates[tier];
+    
+    // Projected career earnings
+    const projectedCareer = baseEarnings * posMultiplier * MODEL_DATA.inflationMultiplier;
+    
+    // Expected 1% value (accounting for MLB probability)
+    const expected1pct = (projectedCareer * 0.01) * mlbProb;
+    
+    return {
+        tier,
+        projectedCareer,
+        mlbProb,
+        expected1pct,
+        posMultiplier
+    };
 }
 
-function formatMoney(num) {
-  return `$${Math.round(num / 1e6)}M`;
+// Calculate offers by MOIC
+function calculateOffers(expected1pct, moics) {
+    return moics.map(moic => ({
+        moic,
+        per1pct: expected1pct / moic,
+        per5pct: (expected1pct / moic) * 5,
+        per10pct: (expected1pct / moic) * 10,
+        expectedReturn: moic
+    }));
 }
 
-function formatMoneyFull(num) {
-  return "$" + Math.round(num).toLocaleString("en-US");
+// Get position risk
+function getPositionRisk(position) {
+    const riskLevels = {
+        'SS': { level: 'LOW', detail: 'Premium position with highest earning potential and 68% MLB success rate.' },
+        '3B': { level: 'LOW', detail: 'Premium position with strong earning potential, especially in ranks 11-25.' },
+        '1B': { level: 'MEDIUM', detail: 'Solid position but requires elite offense to justify high salaries.' },
+        'OF': { level: 'MEDIUM', detail: 'Good position but highly competitive. Need elite speed or power.' },
+        '2B': { level: 'MEDIUM', detail: 'Moderate earning potential. Less physically demanding than SS.' },
+        'Pitcher': { level: 'HIGH', detail: 'High injury risk (Tommy John, shoulder). 0.6-0.8x multipliers reflect this.' },
+        'C': { level: 'HIGH', detail: 'Physically demanding position with lowest earning potential (0.3-0.4x multipliers).' }
+    };
+    return riskLevels[position] || { level: 'MEDIUM', detail: 'Standard risk profile.' };
 }
 
-function pct(x) {
-  return `${Math.round(x * 100)}%`;
+// Get rank tier risk
+function getRankRisk(rank) {
+    if (rank <= 10) {
+        return { level: 'LOW', detail: '92% MLB success rate. 66% become stars earning $50M+.' };
+    } else if (rank <= 25) {
+        return { level: 'LOW', detail: '79% MLB success rate. 41% become stars earning $50M+.' };
+    } else if (rank <= 50) {
+        return { level: 'MEDIUM', detail: '70% MLB success rate. 24% become stars earning $50M+.' };
+    } else if (rank <= 75) {
+        return { level: 'HIGH', detail: '46% MLB success rate. 19% become stars earning $50M+.' };
+    } else {
+        return { level: 'HIGH', detail: '42% MLB success rate. Only 14% become stars earning $50M+.' };
+    }
 }
 
-function offerPer1ForMoic(valuePer1, moic) {
-  return valuePer1 / moic;
+// Generate insights
+function generateInsights(rank, position, results) {
+    const insights = [];
+    const tier = results.tier;
+    
+    // Position-specific insights
+    if (position === 'SS' && rank <= 25) {
+        insights.push({
+            icon: '⭐',
+            text: `Premium opportunity: SS in top 25 have 2.1x position multiplier and average $${(results.projectedCareer / 1000000).toFixed(0)}M careers.`
+        });
+    }
+    
+    if (position === '3B' && rank >= 11 && rank <= 25) {
+        insights.push({
+            icon: '🎯',
+            text: `Sweet spot: 3B in ranks 11-25 have highest multiplier (2.65x) of any position/tier combo.`
+        });
+    }
+    
+    if (position === 'Pitcher') {
+        insights.push({
+            icon: '⚠️',
+            text: `Injury risk: Pitchers have 0.6-0.8x multipliers. Demand discount or pass unless top 25.`
+        });
+    }
+    
+    if (position === 'C') {
+        insights.push({
+            icon: '🚫',
+            text: `Avoid: Catchers have lowest multipliers (0.3-0.4x) and only 14% star rate. Pass unless top 10.`
+        });
+    }
+    
+    // Rank-specific insights
+    if (rank <= 10) {
+        insights.push({
+            icon: '💎',
+            text: `Elite tier: ${(results.mlbProb * 100).toFixed(0)}% MLB success rate. These prospects are scarce - be prepared for competition.`
+        });
+    }
+    
+    if (rank > 50) {
+        insights.push({
+            icon: '📉',
+            text: `High risk: Only ${(results.mlbProb * 100).toFixed(0)}% MLB success rate. Volume approach recommended - diversify across many prospects.`
+        });
+    }
+    
+    // MOIC guidance
+    const tatis_equivalent = results.expected1pct / 254000; // Tatis got $254K (2018 adjusted)
+    if (tatis_equivalent >= 8) {
+        insights.push({
+            icon: '💰',
+            text: `Strong value: At market rates (~$200-250K), this would target ${tatis_equivalent.toFixed(1)}x MOIC. Tatis-level opportunity.`
+        });
+    }
+    
+    // Break-even probability
+    const breakEvenOffer = results.expected1pct / 1.0; // 1.0x MOIC
+    const breakEvenProb = results.mlbProb * 100;
+    insights.push({
+        icon: '📊',
+        text: `Break-even: At $${formatCurrency(breakEvenOffer)} per 1%, you break even if they make MLB (${breakEvenProb.toFixed(0)}% probability).`
+    });
+    
+    return insights;
 }
 
-// binary search lower bound (sample arrays are sorted ascending)
-function lowerBound(arr, x) {
-  let lo = 0, hi = arr.length;
-  while (lo < hi) {
-    const mid = (lo + hi) >> 1;
-    if (arr[mid] < x) lo = mid + 1;
-    else hi = mid;
-  }
-  return lo;
+// Main calculation function
+function calculate() {
+    // Get inputs
+    const rankInput = document.getElementById('prospectRank');
+    const positionInput = document.getElementById('primaryPosition');
+    
+    const rank = parseInt(rankInput.value);
+    const position = positionInput.value;
+    
+    // Validate
+    let isValid = true;
+    
+    if (!rank || rank < 1 || rank > 100) {
+        rankInput.classList.add('is-invalid');
+        isValid = false;
+    } else {
+        rankInput.classList.remove('is-invalid');
+    }
+    
+    if (!position) {
+        positionInput.classList.add('is-invalid');
+        isValid = false;
+    } else {
+        positionInput.classList.remove('is-invalid');
+    }
+    
+    if (!isValid) return;
+    
+    // Calculate
+    const results = calculateExpectedValue(rank, position);
+    const offers = calculateOffers(results.expected1pct, MODEL_DATA.targetMOICs);
+    
+    // Update summary cards
+    document.getElementById('projectedCareer').textContent = formatCurrency(results.projectedCareer);
+    document.getElementById('mlbSuccessRate').textContent = `${(results.mlbProb * 100).toFixed(0)}%`;
+    document.getElementById('expected1pct').textContent = formatCurrency(results.expected1pct);
+    
+    // Calculate break-even probability (at 1.0x MOIC)
+    const breakEvenProb = results.mlbProb * 100;
+    document.getElementById('breakEvenProb').textContent = `${breakEvenProb.toFixed(0)}%`;
+    
+    // Update offer table
+    const tableBody = document.getElementById('offerTableBody');
+    tableBody.innerHTML = '';
+    
+    offers.forEach((offer, index) => {
+        const row = document.createElement('tr');
+        // Highlight 7.5x and 10x as recommended
+        if (offer.moic === 7.5 || offer.moic === 10.0) {
+            row.classList.add('recommended');
+        }
+        
+        row.innerHTML = `
+            <td><span class="moic-label">${offer.moic.toFixed(1)}x</span></td>
+            <td><strong>${formatCurrency(offer.per1pct)}</strong></td>
+            <td>${formatCurrency(offer.per5pct)}</td>
+            <td>${formatCurrency(offer.per10pct)}</td>
+            <td>${offer.expectedReturn.toFixed(1)}x</td>
+        `;
+        tableBody.appendChild(row);
+    });
+    
+    // Update insights
+    const insights = generateInsights(rank, position, results);
+    const insightsContent = document.getElementById('insightsContent');
+    insightsContent.innerHTML = '';
+    
+    insights.forEach(insight => {
+        const div = document.createElement('div');
+        div.className = 'insight-item';
+        div.innerHTML = `
+            <span class="insight-icon">${insight.icon}</span>
+            <span>${insight.text}</span>
+        `;
+        insightsContent.appendChild(div);
+    });
+    
+    // Update risk assessment
+    const posRisk = getPositionRisk(position);
+    const rankRisk = getRankRisk(rank);
+    
+    document.getElementById('positionRisk').textContent = posRisk.level;
+    document.getElementById('positionRisk').className = `risk-badge risk-${posRisk.level.toLowerCase()}`;
+    document.getElementById('positionRiskDetail').textContent = posRisk.detail;
+    
+    document.getElementById('rankRisk').textContent = rankRisk.level;
+    document.getElementById('rankRisk').className = `risk-badge risk-${rankRisk.level.toLowerCase()}`;
+    document.getElementById('rankRiskDetail').textContent = rankRisk.detail;
+    
+    // Show results
+    document.getElementById('resultsSection').style.display = 'block';
+    
+    // Scroll to results
+    document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
 }
 
-// Empirical P(earnings >= threshold)
-function empiricalProbGE(arr, threshold) {
-  const idx = lowerBound(arr, threshold);
-  return (arr.length - idx) / arr.length;
-}
-
-function probBadgeHtml(prob) {
-  const txt = `${Math.round(prob * 100)}%`;
-  let cls = "prob-med";
-  if (prob >= 0.60) cls = "prob-high";
-  else if (prob <= 0.35) cls = "prob-low";
-  return `<span class="prob-badge ${cls}" title="Empirical frequency from similar Top-100 comps">${txt}</span>`;
-}
-
-// =============================
-// CORE ENGINE (EV projection)
-// =============================
-function projectCareerEarnings(rank, position) {
-  const group = rankGroup(rank);
-
-  const rankMult = RANK_EV[group] / BASE_EV;
-  const posMult  = POS_EV[position] / BASE_EV;
-
-  const rawMult =
-    Math.pow(rankMult, W_RANK) *
-    Math.pow(posMult, W_POS);
-
-  let ev =
-    BASE_EV *
-    rawMult *
-    CALIBRATION_K *
-    HIST_UPLIFT *
-    FWD_GROWTH;
-
-  return Math.max(MIN_EV, Math.min(ev, MAX_EV));
-}
-
-// =============================
-// RENDER
-// =============================
-function renderOutcomeBuckets(sample, group, posType) {
-  const probs = bucketProbsFromSample(sample);
-
-  const tbody = document.getElementById("probBody");
-  tbody.innerHTML = "";
-
-  for (const b of BUCKET_ORDER) {
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="fw-semibold">${b}</td>
-      <td>${pct(probs[b] ?? 0)}</td>
-    `;
-    tbody.appendChild(tr);
-  }
-
-  const note = document.getElementById("probNote");
-  note.innerText = `Based on 2012–2013 Top-100 comps for ${group} ${posType} (n=${sample.length}).`;
-}
-
-// =============================
-// UI WIRING
-// =============================
-document.getElementById("calcBtn").addEventListener("click", () => {
-  const rank = parseInt(document.getElementById("rank").value, 10);
-  const position = document.getElementById("position").value;
-
-  if (!rank || rank < 1 || rank > 100 || !position) {
-    alert("Enter a valid rank (1–100) and position.");
-    return;
-  }
-
-  const group = rankGroup(rank);
-  const posType = posTypeFromPosition(position);
-  const sample = EARNINGS_SAMPLES[group][posType];
-
-  // EV projection + value of 1%
-  const ev = projectCareerEarnings(rank, position);
-  const value1 = 0.01 * ev;
-
-  document.getElementById("result").innerText = formatMoney(ev);
-  document.getElementById("details").innerText =
-    `Rank group: ${group} • Position: ${position} (${posType}) • Model v2`;
-
-  document.getElementById("careerEarnings").innerText = formatMoneyFull(ev);
-  document.getElementById("valuePer1").innerText = formatMoneyFull(value1);
-
-  // Outcome buckets (display)
-  renderOutcomeBuckets(sample, group, posType);
-
-  // MOIC table (10x on top → 2x on bottom)
-  const moics = [10, 8, 6, 4, 2];
-  const moicBody = document.getElementById("moicOfferBody");
-  moicBody.innerHTML = "";
-
-  for (const m of moics) {
-    const offer = offerPer1ForMoic(value1, m);
-
-    // Break-even: payout >= offer
-    // payout = 1% * realized_earnings
-    // so realized_earnings >= offer * 100
-    // with offer = (0.01*ev)/m => threshold = ev/m
-    const thresholdEarnings = ev / m;
-
-    const pGE = empiricalProbGE(sample, thresholdEarnings);
-
-    const tr = document.createElement("tr");
-    tr.innerHTML = `
-      <td class="fw-semibold">${m}×</td>
-      <td>${formatMoneyFull(offer)}</td>
-      <td>${probBadgeHtml(pGE)}</td>
-    `;
-    moicBody.appendChild(tr);
-  }
-
-  document.getElementById("output").classList.remove("d-none");
+// Event listeners
+document.addEventListener('DOMContentLoaded', function() {
+    document.getElementById('calculateBtn').addEventListener('click', calculate);
+    
+    // Allow Enter key to calculate
+    document.getElementById('prospectRank').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') calculate();
+    });
+    
+    document.getElementById('primaryPosition').addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') calculate();
+    });
+    
+    // Clear validation on input
+    document.getElementById('prospectRank').addEventListener('input', function() {
+        this.classList.remove('is-invalid');
+    });
+    
+    document.getElementById('primaryPosition').addEventListener('change', function() {
+        this.classList.remove('is-invalid');
+    });
 });
-g
