@@ -1,12 +1,9 @@
-Index · HTML
-Copy
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Front Row Capital - Prospect Offer Tool</title>
+    <title>Front Row Capital Partners - Prospect Valuation Model v5.0</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
     <link rel="stylesheet" href="styles.css">
 </head>
@@ -14,93 +11,159 @@ Copy
     <div class="container">
         <!-- Header -->
         <div class="header text-center">
-            <h1>Prospect Offer Tool</h1>
-            <p class="subtitle">Rank + position → expected earnings, value of 1%, offer per 1% by MOIC, and probability of ≥1.0× (break-even)</p>
+            <h1>⚾ Front Row Capital Partners</h1>
+            <p class="lead">Minor League Prospect Investment Model v5.0</p>
+            <p class="text-muted">Professional fund director decision tool with deduplicated historical data (2012-2019)</p>
         </div>
 
         <!-- Input Card -->
-        <div class="card input-card">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">Prospect Information</h5>
+            </div>
             <div class="card-body">
                 <div class="row g-3">
                     <div class="col-md-6">
                         <label for="prospectRank" class="form-label">Prospect Rank (1-100)</label>
-                        <input type="number" class="form-control" id="prospectRank" placeholder="e.g. 17" min="1" max="100">
+                        <input type="number" class="form-control" id="prospectRank" min="1" max="100" placeholder="Enter rank (e.g., 50)">
                         <div class="invalid-feedback">Please enter a rank between 1 and 100</div>
                     </div>
                     <div class="col-md-6">
-                        <label for="primaryPosition" class="form-label">Primary Position</label>
-                        <select class="form-select" id="primaryPosition">
-                            <option value="">Select position</option>
+                        <label for="position" class="form-label">Primary Position</label>
+                        <select class="form-select" id="position">
+                            <option value="">Select position...</option>
                             <option value="SS">Shortstop (SS)</option>
                             <option value="3B">Third Base (3B)</option>
                             <option value="OF">Outfield (OF)</option>
+                            <option value="Pitcher">Pitcher</option>
                             <option value="C">Catcher (C)</option>
                             <option value="2B">Second Base (2B)</option>
                             <option value="1B">First Base (1B)</option>
-                            <option value="Pitcher">Pitcher</option>
                         </select>
                         <div class="invalid-feedback">Please select a position</div>
                     </div>
                 </div>
-                <div class="mt-4 text-center">
-                    <button class="btn btn-primary btn-lg" id="calculateBtn">Calculate</button>
+                <div class="text-center mt-4">
+                    <button id="calculateBtn" class="btn btn-primary">Calculate Valuation</button>
                 </div>
             </div>
         </div>
 
         <!-- Results Section -->
-        <div id="resultsSection" class="results-section" style="display: none;">
+        <div id="results" style="display: none;" class="results-section">
             <!-- Summary Cards -->
-            <div class="row g-3 mb-4">
-                <div class="col-md-3">
-                    <div class="card stat-card">
-                        <div class="card-body text-center">
-                            <div class="stat-label">Projected Career</div>
-                            <div class="stat-value" id="projectedCareer">$0M</div>
+            <div class="row g-3 mb-4 align-items-stretch">
+                <div class="col-md-2">
+                    <div class="card stat-card h-100">
+                        <div class="card-body">
+                            <div class="stat-label">
+                                MLB SUCCESS
+                                <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" 
+                                      title="Percentage of prospects in this tier/position who made it to MLB (earned $5M+). Based on 495 unique players from 2012-2019.">
+                                    <i class="info-circle">i</i>
+                                </span>
+                            </div>
+                            <div class="stat-value" id="mlbSuccessRate">--</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card stat-card">
-                        <div class="card-body text-center">
-                            <div class="stat-label">MLB Success Rate</div>
-                            <div class="stat-value" id="mlbSuccessRate">0%</div>
+                <div class="col-md-2">
+                    <div class="card stat-card h-100">
+                        <div class="card-body">
+                            <div class="stat-label">
+                                MLB STAR
+                                <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" 
+                                      title="Percentage who became MLB stars (earned $50M+). Shows upside potential - these are All-Stars, franchise players, and superstars.">
+                                    <i class="info-circle">i</i>
+                                </span>
+                            </div>
+                            <div class="stat-value" id="mlbStarRate">--</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card stat-card">
-                        <div class="card-body text-center">
-                            <div class="stat-label">Expected 1% Value</div>
-                            <div class="stat-value" id="expected1pct">$0K</div>
+                <div class="col-md-4">
+                    <div class="card stat-card h-100">
+                        <div class="card-body">
+                            <div class="stat-label">
+                                EXPECTED 1% VALUE
+                                <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" 
+                                      title="Expected value of 1% ownership based on average career earnings of unique players in this tier/position. Each player counted only once at their final ranking.">
+                                    <i class="info-circle">i</i>
+                                </span>
+                            </div>
+                            <div class="stat-value" id="expected1pct">--</div>
                         </div>
                     </div>
                 </div>
-                <div class="col-md-3">
-                    <div class="card stat-card">
-                        <div class="card-body text-center">
-                            <div class="stat-label">Break-Even Prob</div>
-                            <div class="stat-value" id="breakEvenProb">0%</div>
+                <div class="col-md-2">
+                    <div class="card stat-card h-100">
+                        <div class="card-body">
+                            <div class="stat-label">
+                                RISK TIER
+                                <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" 
+                                      title="Prospect ranking tier. Lower tiers have lower MLB success rates but can offer higher MOICs. Top 10 = safest, 76-100 = lottery tickets.">
+                                    <i class="info-circle">i</i>
+                                </span>
+                            </div>
+                            <div class="stat-value" id="riskTier">--</div>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-2">
+                    <div class="card stat-card h-100">
+                        <div class="card-body">
+                            <div class="stat-label">
+                                RECORDS
+                                <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" 
+                                      title="Number of unique historical players (2012-2019) in this tier/position. Each player counted once at final ranking. Larger sample = more reliable projections.">
+                                    <i class="info-circle">i</i>
+                                </span>
+                            </div>
+                            <div class="stat-value" id="recordCount">--</div>
                         </div>
                     </div>
                 </div>
             </div>
 
             <!-- Offer Table -->
-            <div class="card">
+            <div class="card mb-4">
                 <div class="card-header">
-                    <h5 class="mb-0">Market-Calibrated Offer Ranges</h5>
+                    <h5 class="mb-0">Investment Offers by Target MOIC</h5>
+                    <small class="text-muted">Standardized MOICs: 3.5x, 5x, 7.5x, 10x, 15x, 20x | 7.5x-10x recommended</small>
                 </div>
                 <div class="card-body">
                     <div class="table-responsive">
                         <table class="table table-hover offer-table">
                             <thead>
                                 <tr>
-                                    <th>Range (MOIC)</th>
-                                    <th>Per 1%</th>
-                                    <th>Per 5%</th>
-                                    <th>Per 10%</th>
-                                    <th>Expected MOIC</th>
+                                    <th>
+                                        Target MOIC
+                                        <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" 
+                                              title="Multiple on Invested Capital (MOIC). How many times your investment you expect to get back. Higher MOIC = lower price = more risk.">
+                                            <i class="info-circle">i</i>
+                                        </span>
+                                    </th>
+                                    <th>
+                                        Per 1%
+                                        <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" 
+                                              title="Amount to pay for 1% of future MLB earnings at this MOIC target. Most deals are structured as 1-3% ownership.">
+                                            <i class="info-circle">i</i>
+                                        </span>
+                                    </th>
+                                    <th>
+                                        Per 5%
+                                        <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" 
+                                              title="Amount to pay for 5% of future MLB earnings. Larger ownership stake = more exposure to upside/downside.">
+                                            <i class="info-circle">i</i>
+                                        </span>
+                                    </th>
+                                    <th>
+                                        Per 10%
+                                        <span class="info-icon" data-bs-toggle="tooltip" data-bs-placement="top" 
+                                              title="Amount to pay for 10% of future MLB earnings. Maximum typical ownership percentage.">
+                                            <i class="info-circle">i</i>
+                                        </span>
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody id="offerTableBody">
@@ -111,10 +174,10 @@ Copy
                 </div>
             </div>
 
-            <!-- Key Insights -->
-            <div class="card mt-4">
+            <!-- Insights Card -->
+            <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0">Key Insights</h5>
+                    <h5 class="mb-0">Fund Director Insights</h5>
                 </div>
                 <div class="card-body">
                     <div id="insightsContent">
@@ -122,33 +185,14 @@ Copy
                     </div>
                 </div>
             </div>
-
-            <!-- Risk Assessment -->
-            <div class="card mt-4">
-                <div class="card-header">
-                    <h5 class="mb-0">Risk Assessment</h5>
-                </div>
-                <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <h6>Position Risk</h6>
-                            <div id="positionRisk" class="risk-badge"></div>
-                            <p class="small mt-2" id="positionRiskDetail"></p>
-                        </div>
-                        <div class="col-md-6">
-                            <h6>Rank Tier Risk</h6>
-                            <div id="rankRisk" class="risk-badge"></div>
-                            <p class="small mt-2" id="rankRiskDetail"></p>
-                        </div>
-                    </div>
-                </div>
-            </div>
         </div>
 
         <!-- Footer -->
-        <div class="footer text-center mt-5">
-            <p class="text-muted">Model v2. Directional underwriting tool — not a guarantee.</p>
-            <p class="text-muted small">Based on analysis of 502 prospects (2012-2016 cohorts) with 3.5% annual salary inflation</p>
+        <div class="footer text-center">
+            <p class="text-muted">
+                Model v5.0 | Deduplicated Data | Last Year Ranking Rule<br>
+                Based on 495 unique prospects (2012-2019) | Each player counted once at final ranking
+            </p>
         </div>
     </div>
 

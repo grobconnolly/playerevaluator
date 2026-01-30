@@ -1,158 +1,279 @@
-// Model Data - Based on historical analysis and market validation
-// Updated with Jesus Made (#4 SS, $225K) and comprehensive data analysis
+// FRONT ROW CAPITAL PARTNERS - Prospect Valuation Model v5.0
+// Professional Fund Director Decision Tool
+// Updated: January 2026 - DEDUPLICATED DATA
+
+/*
+ * METHODOLOGY v5.0 - DEDUPLICATED DATASET:
+ * - Used "last year ranking" rule for player deduplication
+ * - 495 unique players (down from 800 prospect-years)
+ * - Each player counted only once at their most recent ranking
+ * - Expected values recalculated from actual unique player earnings
+ * 
+ * Example: Ian Happ
+ *   2016: Rank 41 (26-50 tier)
+ *   2017: Rank 51 (51-75 tier) ← Used this ranking
+ * 
+ * Major changes from v4.0:
+ * - Sample sizes reduced by ~38% (removed duplicates)
+ * - Expected values adjusted to reflect unique players only
+ * - More accurate representation of historical performance
+ */
+
 const MODEL_DATA = {
     // Expected 1% values by tier/position (in thousands)
-    // Based on 502 prospects from 2012-2016 cohorts, adjusted for 2025 inflation
+    // Based on 495 unique prospects with last-year rankings
+    // Pitchers = LHP + RHP combined
     expectedValues: {
-        'Top 10': {
-            'SS': 3224,
-            '3B': 2501,
-            'OF': 2217,
-            'Pitcher': 1102,
-            'C': 1830,
-            '2B': 2000,
-            '1B': 2000
+        "Top 10": {
+                "SS": 1652,
+                "3B": 2238,
+                "OF": 1877,
+                "Pitcher": 848,
+                "C": 552,
+                "2B": 0,
+                "1B": 5721
         },
-        '11-25': {
-            'SS': 2340,
-            '3B': 2929,
-            'OF': 1267,
-            'Pitcher': 766,
-            'C': 343,
-            '2B': 1000,
-            '1B': 1000
+        "11-25": {
+                "SS": 1508,
+                "3B": 2219,
+                "OF": 528,
+                "Pitcher": 448,
+                "C": 268,
+                "2B": 185,
+                "1B": 981
         },
-        '26-50': {
-            'SS': 708,
-            '3B': 688,
-            'OF': 874,
-            'Pitcher': 509,
-            'C': 194,
-            '2B': 600,
-            '1B': 600
+        "26-50": {
+                "SS": 395,
+                "3B": 695,
+                "OF": 425,
+                "Pitcher": 309,
+                "C": 244,
+                "2B": 238,
+                "1B": 799
         },
-        '51-75': {
-            'SS': 988,
-            '3B': 551,
-            'OF': 800,  // Updated: 3.1x increase based on Judge/Tucker/2017-2019 data
-            'Pitcher': 448,
-            'C': 528,
-            '2B': 400,
-            '1B': 400
+        "51-75": {
+                "SS": 462,
+                "3B": 317,
+                "OF": 230,
+                "Pitcher": 269,
+                "C": 274,
+                "2B": 276,
+                "1B": 628
         },
-        '76-100': {
-            'SS': 728,
-            '3B': 552,
-            'OF': 650,  // Updated: 3.2x increase based on Soto ($765M)/Judge/2017-2019 data
-            'Pitcher': 402,
-            'C': 63,
-            '2B': 300,
-            '1B': 300
+        "76-100": {
+                "SS": 247,
+                "3B": 52,
+                "OF": 66,
+                "Pitcher": 190,
+                "C": 236,
+                "2B": 52,
+                "1B": 218
         }
-    },
+},
     
-    // MLB success rates by tier and position
-    // Based on actual historical data (2012-2016 cohorts)
-    successRates: {
-        'Top 10': {
-            'SS': 0.923,
-            '3B': 1.000,
-            'OF': 0.778,
-            'Pitcher': 0.955,
-            'C': 0.850,
-            '2B': 0.900,
-            '1B': 0.900
+    // MLB Success Rates (earned $5M+)
+    mlbSuccessRates: {
+        "Top 10": {
+                "SS": 0.929,
+                "3B": 1.0,
+                "OF": 0.833,
+                "Pitcher": 0.9,
+                "C": 1.0,
+                "2B": 0,
+                "1B": 1.0
         },
-        '11-25': {
-            'SS': 1.000,
-            '3B': 1.000,
-            'OF': 0.900,
-            'Pitcher': 0.714,
-            'C': 0.667,
-            '2B': 0.800,
-            '1B': 0.800
+        "11-25": {
+                "SS": 0.75,
+                "3B": 1.0,
+                "OF": 0.833,
+                "Pitcher": 0.667,
+                "C": 0.667,
+                "2B": 0.8,
+                "1B": 0.667
         },
-        '26-50': {
-            'SS': 0.538,
-            '3B': 0.750,
-            'OF': 0.750,
-            'Pitcher': 0.639,
-            'C': 1.000,
-            '2B': 0.700,
-            '1B': 0.700
+        "26-50": {
+                "SS": 0.5,
+                "3B": 0.75,
+                "OF": 0.571,
+                "Pitcher": 0.619,
+                "C": 1.0,
+                "2B": 0.833,
+                "1B": 1.0
         },
-        '51-75': {
-            'SS': 0.636,
-            '3B': 0.625,
-            'OF': 0.333,
-            'Pitcher': 0.466,
-            'C': 0.571,
-            '2B': 0.500,
-            '1B': 0.500
+        "51-75": {
+                "SS": 0.727,
+                "3B": 0.8,
+                "OF": 0.375,
+                "Pitcher": 0.443,
+                "C": 0.5,
+                "2B": 0.5,
+                "1B": 0.667
         },
-        '76-100': {
-            'SS': 0.462,
-            '3B': 0.500,
-            'OF': 0.304, // Updated: actual data from 23 OFs ranked 80-100
-            'Pitcher': 0.431,
-            'C': 0.333,
-            '2B': 0.400,
-            '1B': 0.400
+        "76-100": {
+                "SS": 0.364,
+                "3B": 0.3,
+                "OF": 0.25,
+                "Pitcher": 0.421,
+                "C": 0.6,
+                "2B": 0.25,
+                "1B": 0.5
         }
-    },
+},
     
-    // Market-calibrated offer ranges (in thousands)
-    // Based on Jesus Made ($225K for #4 SS) and Tatis ($200K for #8 SS)
-    offerRanges: {
-        'Top 10': {
-            'SS': { low: 200, mid: 250, high: 350 },
-            '3B': { low: 180, mid: 225, high: 325 },
-            'OF': { low: 150, mid: 200, high: 300 },
-            'Pitcher': { low: 125, mid: 175, high: 250 },
-            'C': { low: 100, mid: 150, high: 225 },
-            '2B': { low: 150, mid: 200, high: 275 },
-            '1B': { low: 150, mid: 200, high: 275 }
+    // MLB Star Rates (earned $50M+)
+    mlbStarRates: {
+        "Top 10": {
+                "SS": 0.643,
+                "3B": 0.625,
+                "OF": 0.833,
+                "Pitcher": 0.5,
+                "C": 1.0,
+                "2B": 0,
+                "1B": 1.0
         },
-        '11-25': {
-            'SS': { low: 150, mid: 200, high: 275 },
-            '3B': { low: 160, mid: 220, high: 300 },
-            'OF': { low: 100, mid: 150, high: 200 },
-            'Pitcher': { low: 80, mid: 125, high: 175 },
-            'C': { low: 60, mid: 90, high: 130 },
-            '2B': { low: 100, mid: 150, high: 200 },
-            '1B': { low: 100, mid: 150, high: 200 }
+        "11-25": {
+                "SS": 0.75,
+                "3B": 0.667,
+                "OF": 0.167,
+                "Pitcher": 0.37,
+                "C": 0.167,
+                "2B": 0.0,
+                "1B": 0.333
         },
-        '26-50': {
-            'SS': { low: 70, mid: 100, high: 130 },
-            '3B': { low: 65, mid: 95, high: 125 },
-            'OF': { low: 55, mid: 80, high: 110 },
-            'Pitcher': { low: 45, mid: 65, high: 90 },
-            'C': { low: 35, mid: 50, high: 70 },
-            '2B': { low: 55, mid: 80, high: 110 },
-            '1B': { low: 55, mid: 80, high: 110 }
+        "26-50": {
+                "SS": 0.25,
+                "3B": 0.25,
+                "OF": 0.357,
+                "Pitcher": 0.175,
+                "C": 0.143,
+                "2B": 0.0,
+                "1B": 0.5
         },
-        '51-75': {
-            'SS': { low: 70, mid: 95, high: 125 },
-            '3B': { low: 60, mid: 85, high: 110 },
-            'OF': { low: 80, mid: 115, high: 160 },  // Updated: 3.1x increase for Judge/Tucker market
-            'Pitcher': { low: 50, mid: 70, high: 90 },
-            'C': { low: 40, mid: 60, high: 80 },
-            '2B': { low: 45, mid: 65, high: 85 },
-            '1B': { low: 45, mid: 65, high: 85 }
+        "51-75": {
+                "SS": 0.364,
+                "3B": 0.2,
+                "OF": 0.125,
+                "Pitcher": 0.197,
+                "C": 0.2,
+                "2B": 0.333,
+                "1B": 0.333
         },
-        '76-100': {
-            'SS': { low: 55, mid: 75, high: 100 },
-            '3B': { low: 45, mid: 65, high: 85 },
-            'OF': { low: 60, mid: 85, high: 125 },  // Updated: 3.2x increase for Soto/Judge market
-            'Pitcher': { low: 35, mid: 50, high: 70 },
-            'C': { low: 20, mid: 30, high: 45 },
-            '2B': { low: 30, mid: 45, high: 65 },
-            '1B': { low: 30, mid: 45, high: 65 }
+        "76-100": {
+                "SS": 0.182,
+                "3B": 0.0,
+                "OF": 0.0,
+                "Pitcher": 0.105,
+                "C": 0.1,
+                "2B": 0.0,
+                "1B": 0.167
         }
-    }
+},
+    
+    // Sample sizes (unique players per tier/position)
+    sampleSizes: {
+        "Top 10": {
+                "SS": 14,
+                "3B": 8,
+                "OF": 6,
+                "Pitcher": 10,
+                "C": 1,
+                "2B": 0,
+                "1B": 1
+        },
+        "11-25": {
+                "SS": 4,
+                "3B": 6,
+                "OF": 6,
+                "Pitcher": 27,
+                "C": 6,
+                "2B": 5,
+                "1B": 3
+        },
+        "26-50": {
+                "SS": 8,
+                "3B": 8,
+                "OF": 14,
+                "Pitcher": 63,
+                "C": 7,
+                "2B": 6,
+                "1B": 6
+        },
+        "51-75": {
+                "SS": 11,
+                "3B": 10,
+                "OF": 16,
+                "Pitcher": 61,
+                "C": 10,
+                "2B": 6,
+                "1B": 3
+        },
+        "76-100": {
+                "SS": 11,
+                "3B": 10,
+                "OF": 28,
+                "Pitcher": 57,
+                "C": 10,
+                "2B": 4,
+                "1B": 6
+        }
+},
+    
+    // Standardized MOIC targets for offers
+    moicTargets: {
+        "Top 10": [
+                3.5,
+                5.0,
+                7.5,
+                10.0,
+                15.0,
+                20.0
+        ],
+        "11-25": [
+                3.5,
+                5.0,
+                7.5,
+                10.0,
+                15.0,
+                20.0
+        ],
+        "26-50": [
+                3.5,
+                5.0,
+                7.5,
+                10.0,
+                15.0,
+                20.0
+        ],
+        "51-75": [
+                3.5,
+                5.0,
+                7.5,
+                10.0,
+                15.0,
+                20.0
+        ],
+        "76-100": [
+                3.5,
+                5.0,
+                7.5,
+                10.0,
+                15.0,
+                20.0
+        ]
+}
 };
 
-// Get tier based on rank
+// Helper functions
+function formatCurrency(value) {
+    if (value >= 1000000) {
+        return '$' + (value / 1000000).toFixed(2) + 'M';
+    } else if (value >= 1000) {
+        return '$' + Math.round(value / 1000) + 'K';
+    } else {
+        return '$' + Math.round(value);
+    }
+}
+
 function getTier(rank) {
     if (rank <= 10) return 'Top 10';
     if (rank <= 25) return '11-25';
@@ -161,131 +282,87 @@ function getTier(rank) {
     return '76-100';
 }
 
-// Format currency
-function formatCurrency(amount, decimals = 0) {
-    if (amount >= 1000000) {
-        return `$${(amount / 1000000).toFixed(1)}M`;
-    } else if (amount >= 1000) {
-        return `$${Math.round(amount / 1000)}K`;
-    }
-    return `$${Math.round(amount)}`;
-}
-
-// Calculate projections based on rank and position
-function calculateExpectedValue(rank, position) {
+function calculateValuation(rank, position) {
     const tier = getTier(rank);
     
-    // Get expected 1% value directly from model (already accounts for MLB probability and inflation)
-    const expected1pct = (MODEL_DATA.expectedValues[tier][position] || 0) * 1000; // Convert from K to dollars
+    // Get expected 1% value (in thousands)
+    const expected1pctK = MODEL_DATA.expectedValues[tier][position] || 0;
+    const expected1pct = expected1pctK * 1000;
     
-    // Get position-specific MLB probability
-    const mlbProb = MODEL_DATA.successRates[tier][position] || MODEL_DATA.successRates[tier]['OF'];
-    
-    // Back-calculate projected career from expected value
-    const projectedCareer = mlbProb > 0 ? (expected1pct / 0.01) / mlbProb : 0;
+    // Get rates
+    const mlbProb = MODEL_DATA.mlbSuccessRates[tier][position] || 0;
+    const starProb = MODEL_DATA.mlbStarRates[tier][position] || 0;
     
     return {
-        tier,
-        projectedCareer,
-        mlbProb,
-        expected1pct
+        expected1pct: expected1pct,
+        mlbProb: mlbProb,
+        starProb: starProb,
+        tier: tier
     };
 }
 
-// Calculate offers by MOIC
-function calculateOffers(expected1pct, moics) {
-    return moics.map(moic => ({
-        moic,
-        per1pct: expected1pct / moic,
-        per5pct: (expected1pct / moic) * 5,
-        per10pct: (expected1pct / moic) * 10,
-        expectedReturn: moic
-    }));
+function generateOffers(expected1pct) {
+    const moicTargets = [3.5, 5.0, 7.5, 10.0, 15.0, 20.0];
+    const offers = [];
+    
+    moicTargets.forEach(moic => {
+        const per1pct = expected1pct / moic;
+        const per5pct = per1pct * 5;
+        const per10pct = per1pct * 10;
+        
+        offers.push({
+            moic: moic,
+            per1pct: per1pct,
+            per5pct: per5pct,
+            per10pct: per10pct
+        });
+    });
+    
+    return offers;
 }
 
-// Get position risk
-function getPositionRisk(position) {
-    const riskLevels = {
-        'SS': { level: 'LOW', detail: 'Premium position with highest earning potential and 68% MLB success rate.' },
-        '3B': { level: 'LOW', detail: 'Premium position with strong earning potential, especially in ranks 11-25.' },
-        '1B': { level: 'MEDIUM', detail: 'Solid position but requires elite offense to justify high salaries.' },
-        'OF': { level: 'MEDIUM', detail: 'Good position but highly competitive. Need elite speed or power.' },
-        '2B': { level: 'MEDIUM', detail: 'Moderate earning potential. Less physically demanding than SS.' },
-        'Pitcher': { level: 'HIGH', detail: 'High injury risk (Tommy John, shoulder). 0.6-0.8x multipliers reflect this.' },
-        'C': { level: 'HIGH', detail: 'Physically demanding position with lowest earning potential (0.3-0.4x multipliers).' }
-    };
-    return riskLevels[position] || { level: 'MEDIUM', detail: 'Standard risk profile.' };
-}
-
-// Get rank tier risk
-function getRankRisk(rank) {
-    if (rank <= 10) {
-        return { level: 'LOW', detail: '92% MLB success rate. 66% become stars earning $50M+.' };
-    } else if (rank <= 25) {
-        return { level: 'LOW', detail: '79% MLB success rate. 41% become stars earning $50M+.' };
-    } else if (rank <= 50) {
-        return { level: 'MEDIUM', detail: '70% MLB success rate. 24% become stars earning $50M+.' };
-    } else if (rank <= 75) {
-        return { level: 'HIGH', detail: '46% MLB success rate. 19% become stars earning $50M+.' };
-    } else {
-        return { level: 'HIGH', detail: '42% MLB success rate. Only 14% become stars earning $50M+.' };
-    }
-}
-
-// Generate insights
 function generateInsights(rank, position, results) {
     const insights = [];
     const tier = results.tier;
-    const offerRange = MODEL_DATA.offerRanges[tier][position];
     
-    // Jesus Made / Tatis reference for top prospects
-    if (rank <= 10 && position === 'SS') {
+    // MLB Success insight
+    if (results.mlbProb >= 0.80) {
         insights.push({
-            icon: '💎',
-            text: `Market comp: Jesus Made (#4 SS) signed for $225K per 1%. Tatis (#8 SS) signed for $200K. Your range: ${offerRange.low}K-${offerRange.high}K is validated.`
+            icon: '✅',
+            text: `High success rate: ${(results.mlbProb * 100).toFixed(0)}% of ${tier} ${position} prospects made MLB (earned $5M+). Strong probability of reaching the majors.`
         });
-    }
-    
-    // Position-specific insights
-    if (position === 'SS' && rank <= 25) {
+    } else if (results.mlbProb >= 0.60) {
         insights.push({
-            icon: '⭐',
-            text: `Premium position: SS in top 25 have ${(results.mlbProb * 100).toFixed(0)}% MLB success rate and average career ${(results.projectedCareer / 1000000).toFixed(0)}M.`
+            icon: '📊',
+            text: `Moderate success rate: ${(results.mlbProb * 100).toFixed(0)}% MLB rate for ${tier} ${position}. Balanced risk/reward tier.`
         });
-    }
-    
-    if (position === '3B' && rank >= 11 && rank <= 25) {
-        insights.push({
-            icon: '🎯',
-            text: `Sweet spot: 3B in ranks 11-25 have 100% MLB rate and highest position multiplier (2.65x).`
-        });
-    }
-    
-    if (position === 'Pitcher') {
+    } else if (results.mlbProb >= 0.40) {
         insights.push({
             icon: '⚠️',
-            text: `Injury risk: Pitchers have injury discount in pricing. Demand lower valuation or pass unless top 25.`
+            text: `Lower success rate: ${(results.mlbProb * 100).toFixed(0)}% MLB rate. Higher risk but can offer better MOIC targets for portfolio diversity.`
+        });
+    } else {
+        insights.push({
+            icon: '🎲',
+            text: `Lottery ticket: Only ${(results.mlbProb * 100).toFixed(0)}% reach MLB. Very high risk - requires 15-20x MOIC targets and portfolio diversification.`
         });
     }
     
-    if (position === 'C') {
+    // Star potential insight
+    if (results.starProb >= 0.50) {
         insights.push({
-            icon: '🚫',
-            text: `Avoid catchers: Lowest earning potential and physically demanding. Pass unless top 10 overall.`
+            icon: '⭐',
+            text: `Exceptional star potential: ${(results.starProb * 100).toFixed(0)}% became MLB stars ($50M+). Elite prospects with franchise player upside.`
         });
-    }
-    
-    if (position === 'OF' && rank >= 51 && rank <= 75) {
+    } else if (results.starProb >= 0.25) {
         insights.push({
-            icon: '🚀',
-            text: `OF surge: 51-75 OFs outperforming historical data by 3x. Aaron Judge (#61, $394M) and Kyle Tucker (#63, $277M) validate higher valuations.`
+            icon: '🌟',
+            text: `Good star potential: ${(results.starProb * 100).toFixed(0)}% reached $50M+ earnings. Solid chance at All-Star caliber returns.`
         });
-    }
-    
-    if (position === 'OF' && rank >= 76) {
+    } else if (results.starProb > 0) {
         insights.push({
-            icon: '💎',
-            text: `OF lottery: 76-100 OFs trending up. Juan Soto (#95, $765M) and Judge show potential. Still high risk but increased upside.`
+            icon: '💫',
+            text: `Star potential: ${(results.starProb * 100).toFixed(0)}% became stars. Some upside exists but most returns will come from solid MLB careers.`
         });
     }
     
@@ -293,45 +370,45 @@ function generateInsights(rank, position, results) {
     if (rank <= 10) {
         insights.push({
             icon: '🏆',
-            text: `Elite tier: ${(results.mlbProb * 100).toFixed(0)}% MLB success rate, 66% become stars. Expect competition - be prepared to pay full range.`
+            text: `Elite tier: Top 10 prospects are "base hits" - target 5-10x MOICs for high-probability returns with star upside.`
         });
     }
     
-    if (rank >= 51 && rank <= 75) {
+    if (rank >= 26 && rank <= 50) {
         insights.push({
             icon: '📊',
-            text: `Moderate risk: ${(results.mlbProb * 100).toFixed(0)}% MLB success rate. Good for diversification but need multiple positions in this tier.`
+            text: `Sweet spot: Balanced risk/return tier. Target 7.5-10x MOIC. Excellent for portfolio diversification across positions.`
         });
     }
     
     if (rank > 75) {
         insights.push({
-            icon: '🎲',
-            text: `Lottery ticket: Only ${(results.mlbProb * 100).toFixed(0)}% make MLB. Need aggressive pricing. George Springer (#84 OF) made $187M - but rare.`
+            icon: '🎰',
+            text: `Lottery tickets: Require 15-20x MOICs. Need 10+ positions at this tier to offset risk through portfolio approach.`
         });
     }
     
-    // Expected MOIC at midpoint
-    const midOffer = offerRange.mid * 1000;
-    const expectedMOIC = results.expected1pct / midOffer;
+    // Fund director guidance
+    const offer_at_7_5x = results.expected1pct / (7.5 * 1000);
+    const offer_at_10x = results.expected1pct / (10.0 * 1000);
+    
     insights.push({
-        icon: '💰',
-        text: `Expected return: At ${offerRange.mid}K (midpoint), you target ${expectedMOIC.toFixed(1)}x MOIC. Market-validated pricing.`
+        icon: '💼',
+        text: `Fund guidance: Sweet spot ${formatCurrency(offer_at_7_5x)} (7.5x MOIC) to ${formatCurrency(offer_at_10x)} (10x MOIC). Model v5.0 with deduplicated data.`
     });
     
     return insights;
 }
 
-// Main calculation function
 function calculate() {
     // Get inputs
     const rankInput = document.getElementById('prospectRank');
-    const positionInput = document.getElementById('primaryPosition');
+    const positionInput = document.getElementById('position');
     
     const rank = parseInt(rankInput.value);
     const position = positionInput.value;
     
-    // Validate
+    // Validation
     let isValid = true;
     
     if (!rank || rank < 1 || rank > 100) {
@@ -351,120 +428,76 @@ function calculate() {
     if (!isValid) return;
     
     // Calculate
-    const results = calculateExpectedValue(rank, position);
+    const results = calculateValuation(rank, position);
     const tier = results.tier;
     
-    // Get market-calibrated offers for this tier/position
-    const offerRange = MODEL_DATA.offerRanges[tier][position];
-    
-    // Create offer table with Low, Mid, High ranges
-    const marketOffers = [
-        { 
-            label: 'Low',
-            moic: results.expected1pct / (offerRange.high * 1000), // High price = low MOIC
-            per1pct: offerRange.high * 1000,
-            per5pct: offerRange.high * 1000 * 5,
-            per10pct: offerRange.high * 1000 * 10
-        },
-        { 
-            label: 'Mid',
-            moic: results.expected1pct / (offerRange.mid * 1000),
-            per1pct: offerRange.mid * 1000,
-            per5pct: offerRange.mid * 1000 * 5,
-            per10pct: offerRange.mid * 1000 * 10
-        },
-        { 
-            label: 'High',
-            moic: results.expected1pct / (offerRange.low * 1000), // Low price = high MOIC
-            per1pct: offerRange.low * 1000,
-            per5pct: offerRange.low * 1000 * 5,
-            per10pct: offerRange.low * 1000 * 10
-        }
-    ];
+    // Check if we have data for this combination
+    const sampleSize = MODEL_DATA.sampleSizes[tier][position] || 0;
+    if (sampleSize === 0) {
+        alert(`No historical data available for ${tier} ${position} prospects. Please try a different combination.`);
+        return;
+    }
     
     // Update summary cards
-    document.getElementById('projectedCareer').textContent = formatCurrency(results.projectedCareer);
-    document.getElementById('mlbSuccessRate').textContent = `${(results.mlbProb * 100).toFixed(0)}%`;
+    document.getElementById('mlbSuccessRate').textContent = `${(results.mlbProb * 100).toFixed(1)}%`;
+    document.getElementById('mlbStarRate').textContent = `${(results.starProb * 100).toFixed(1)}%`;
     document.getElementById('expected1pct').textContent = formatCurrency(results.expected1pct);
+    document.getElementById('riskTier').textContent = tier;
     
-    // Calculate break-even probability (at 1.0x MOIC)
-    const breakEvenProb = results.mlbProb * 100;
-    document.getElementById('breakEvenProb').textContent = `${breakEvenProb.toFixed(0)}%`;
+    // Display record count
+    document.getElementById('recordCount').textContent = sampleSize;
     
     // Update offer table
+    const offers = generateOffers(results.expected1pct);
     const tableBody = document.getElementById('offerTableBody');
     tableBody.innerHTML = '';
     
-    marketOffers.forEach((offer) => {
+    offers.forEach((offer, index) => {
         const row = document.createElement('tr');
-        // Highlight Mid as recommended
-        if (offer.label === 'Mid') {
+        // Highlight 7.5x and 10x (indices 2-3) as recommended sweet spot
+        if (index === 2 || index === 3) {
             row.classList.add('recommended');
         }
         
         row.innerHTML = `
-            <td><span class="moic-label">${offer.label} (${offer.moic.toFixed(1)}x)</span></td>
-            <td><strong>${formatCurrency(offer.per1pct)}</strong></td>
+            <td><span class="moic-label">${offer.moic}x</span></td>
+            <td>${formatCurrency(offer.per1pct)}</td>
             <td>${formatCurrency(offer.per5pct)}</td>
             <td>${formatCurrency(offer.per10pct)}</td>
-            <td>${offer.moic.toFixed(1)}x</td>
         `;
+        
         tableBody.appendChild(row);
     });
     
     // Update insights
     const insights = generateInsights(rank, position, results);
-    const insightsContent = document.getElementById('insightsContent');
-    insightsContent.innerHTML = '';
+    const insightsContainer = document.getElementById('insightsContent');
+    insightsContainer.innerHTML = '';
     
     insights.forEach(insight => {
         const div = document.createElement('div');
         div.className = 'insight-item';
-        div.innerHTML = `
-            <span class="insight-icon">${insight.icon}</span>
-            <span>${insight.text}</span>
-        `;
-        insightsContent.appendChild(div);
+        div.textContent = `${insight.icon} ${insight.text}`;
+        insightsContainer.appendChild(div);
     });
     
-    // Update risk assessment
-    const posRisk = getPositionRisk(position);
-    const rankRisk = getRankRisk(rank);
-    
-    document.getElementById('positionRisk').textContent = posRisk.level;
-    document.getElementById('positionRisk').className = `risk-badge risk-${posRisk.level.toLowerCase()}`;
-    document.getElementById('positionRiskDetail').textContent = posRisk.detail;
-    
-    document.getElementById('rankRisk').textContent = rankRisk.level;
-    document.getElementById('rankRisk').className = `risk-badge risk-${rankRisk.level.toLowerCase()}`;
-    document.getElementById('rankRiskDetail').textContent = rankRisk.detail;
-    
     // Show results
-    document.getElementById('resultsSection').style.display = 'block';
-    
-    // Scroll to results
-    document.getElementById('resultsSection').scrollIntoView({ behavior: 'smooth', block: 'start' });
+    document.getElementById('results').style.display = 'block';
+    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-// Event listeners
+// Initialize
 document.addEventListener('DOMContentLoaded', function() {
+    // Initialize Bootstrap tooltips
+    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
+    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl)
+    });
+    
     document.getElementById('calculateBtn').addEventListener('click', calculate);
     
     // Allow Enter key to calculate
     document.getElementById('prospectRank').addEventListener('keypress', function(e) {
         if (e.key === 'Enter') calculate();
-    });
-    
-    document.getElementById('primaryPosition').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') calculate();
-    });
-    
-    // Clear validation on input
-    document.getElementById('prospectRank').addEventListener('input', function() {
-        this.classList.remove('is-invalid');
-    });
-    
-    document.getElementById('primaryPosition').addEventListener('change', function() {
-        this.classList.remove('is-invalid');
     });
 });
