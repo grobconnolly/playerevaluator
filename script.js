@@ -1,498 +1,421 @@
-// FRONT ROW CAPITAL PARTNERS - Prospect Valuation Model v5.0
-// Professional Investment Decision Tool
-// Updated: January 2026 - DEDUPLICATED DATA
+"use strict";
 
-/*
- * METHODOLOGY v5.0 - DEDUPLICATED DATASET:
- * - Used "last year ranking" rule for player deduplication
- * - 495 unique players (down from 800 prospect-years)
- * - Each player counted only once at their most recent ranking
- * - Expected values recalculated from actual unique player earnings
- * 
- * Example: Ian Happ
- *   2016: Rank 41 (26-50 tier)
- *   2017: Rank 51 (51-75 tier) ← Used this ranking
- * 
- * Major changes from v4.0:
- * - Sample sizes reduced by ~38% (removed duplicates)
- * - Expected values adjusted to reflect unique players only
- * - More accurate representation of historical performance
- * - Added confidence level warnings for low sample sizes
- */
+// ============================================================
+// GEE MODEL — Refined coefficients from regression output
+// Gamma distribution with log link function
+// ============================================================
+const MODEL = Object.freeze({
+    // Dispersion parameters (recovered from probability calibration)
+    phi: 2.900364615700,
+    shape: 0.344784236639,
 
-const MODEL_DATA = {
-    // Expected 1% values by tier/position (in thousands)
-    // Based on 495 unique prospects with last-year rankings
-    // Pitchers = LHP + RHP combined
-    expectedValues: {
-        "Top 10": {
-            "SS": 1652,
-            "3B": 2238,
-            "OF": 1877,
-            "Pitcher": 848,
-            "C": 552,
-            "2B": 0,
-            "1B": 5721
-        },
-        "11-25": {
-            "SS": 1508,
-            "3B": 2219,
-            "OF": 528,
-            "Pitcher": 448,
-            "C": 268,
-            "2B": 185,
-            "1B": 981
-        },
-        "26-50": {
-            "SS": 395,
-            "3B": 695,
-            "OF": 425,
-            "Pitcher": 309,
-            "C": 244,
-            "2B": 238,
-            "1B": 799
-        },
-        "51-75": {
-            "SS": 462,
-            "3B": 317,
-            "OF": 230,
-            "Pitcher": 269,
-            "C": 274,
-            "2B": 276,
-            "1B": 628
-        },
-        "76-100": {
-            "SS": 247,
-            "3B": 52,
-            "OF": 66,
-            "Pitcher": 190,
-            "C": 236,
-            "2B": 52,
-            "1B": 218
+    // Thresholds for success classification
+    THRESHOLD_MLB: 5000000,     // $5M career earnings
+    THRESHOLD_STAR: 50000000,   // $50M career earnings
+
+    // MOIC targets for offer table
+    MOIC_TARGETS: Object.freeze([3.5, 5.0, 7.5, 10.0, 15.0, 20.0]),
+    RECOMMENDED_MOIC: Object.freeze([7.5, 10.0]),
+
+    // Stake percentages
+    STAKES: Object.freeze([0.01, 0.05, 0.10]),
+
+    // Reference categories: Position=1B, Level=0("other")
+    // Position coefficients (relative to 1B)
+    positionCoefficients: Object.freeze({
+        '1B':  0.000000000000,
+        '2B': -1.087700000000,
+        '3B': -0.574255259751,
+        'C':  -0.824900000000,
+        'C/3B': -5.822300000000,
+        'CF': -3.249600000000,
+        'DH': -5.548500000000,
+        'LF': -2.089300000000,
+        'LHP': -1.005843585426,
+        'LHP/1B': -5.937700000000,
+        'OF': -0.925590968346,
+        'RF': -0.810301402762,
+        'RHP': -1.374355323927,
+        'SS': -0.747957086460,
+        'TWP': -0.230648830949,
+    }),
+
+    // Level coefficients (relative to level 0="other")
+    levelCoefficients: Object.freeze({
+        0:  0.000000000000,
+        1: -9.326816591625,
+        2: -2.543228891600,
+        3: -8.803247021684,
+        4: -5.892867311270,
+        5: -9.288258919179,
+        6: -4.362233597074,
+    }),
+
+    // Age × Level interaction coefficients
+    ageLevelCoefficients: Object.freeze({
+        0: 0.000000000000,
+        1: 0.612107350866,
+        2: 0.250292410563,
+        3: 0.584733160550,
+        4: 0.432376792217,
+        5: 0.596340472495,
+        6: 0.385746744273,
+    }),
+
+    // Continuous coefficients
+    intercept: 26.242947406006,
+    rankCoef: -0.012879489864,
+    ageCoef: -0.479102776271,
+});
+
+// ============================================================
+// GAMMA DISTRIBUTION — Pure JS implementation
+// ============================================================
+const GammaMath = (() => {
+    // Log-gamma function using Lanczos approximation (g=7, n=9)
+    const LANCZOS_COEFS = [
+        0.99999999999980993,
+        676.5203681218851,
+        -1259.1392167224028,
+        771.32342877765313,
+        -176.61502916214059,
+        12.507343278686905,
+        -0.13857109526572012,
+        9.9843695780195716e-6,
+        1.5056327351493116e-7,
+    ];
+
+    function lnGamma(z) {
+        if (z < 0.5) {
+            return Math.log(Math.PI / Math.sin(Math.PI * z)) - lnGamma(1 - z);
         }
-    },
-    
-    // MLB Success Rates (earned $5M+)
-    mlbSuccessRates: {
-        "Top 10": {
-            "SS": 0.929,
-            "3B": 1.0,
-            "OF": 0.833,
-            "Pitcher": 0.9,
-            "C": 1.0,
-            "2B": 0,
-            "1B": 1.0
-        },
-        "11-25": {
-            "SS": 0.75,
-            "3B": 1.0,
-            "OF": 0.833,
-            "Pitcher": 0.667,
-            "C": 0.667,
-            "2B": 0.8,
-            "1B": 0.667
-        },
-        "26-50": {
-            "SS": 0.5,
-            "3B": 0.75,
-            "OF": 0.571,
-            "Pitcher": 0.619,
-            "C": 1.0,
-            "2B": 0.833,
-            "1B": 1.0
-        },
-        "51-75": {
-            "SS": 0.727,
-            "3B": 0.8,
-            "OF": 0.375,
-            "Pitcher": 0.443,
-            "C": 0.5,
-            "2B": 0.5,
-            "1B": 0.667
-        },
-        "76-100": {
-            "SS": 0.364,
-            "3B": 0.3,
-            "OF": 0.25,
-            "Pitcher": 0.421,
-            "C": 0.6,
-            "2B": 0.25,
-            "1B": 0.5
+        z -= 1;
+        let x = LANCZOS_COEFS[0];
+        for (let i = 1; i < 9; i++) {
+            x += LANCZOS_COEFS[i] / (z + i);
         }
-    },
-    
-    // MLB Star Rates (earned $50M+)
-    mlbStarRates: {
-        "Top 10": {
-            "SS": 0.643,
-            "3B": 0.625,
-            "OF": 0.833,
-            "Pitcher": 0.5,
-            "C": 1.0,
-            "2B": 0,
-            "1B": 1.0
-        },
-        "11-25": {
-            "SS": 0.75,
-            "3B": 0.667,
-            "OF": 0.167,
-            "Pitcher": 0.37,
-            "C": 0.167,
-            "2B": 0.0,
-            "1B": 0.333
-        },
-        "26-50": {
-            "SS": 0.25,
-            "3B": 0.25,
-            "OF": 0.357,
-            "Pitcher": 0.175,
-            "C": 0.143,
-            "2B": 0.0,
-            "1B": 0.5
-        },
-        "51-75": {
-            "SS": 0.364,
-            "3B": 0.2,
-            "OF": 0.125,
-            "Pitcher": 0.197,
-            "C": 0.2,
-            "2B": 0.333,
-            "1B": 0.333
-        },
-        "76-100": {
-            "SS": 0.182,
-            "3B": 0.0,
-            "OF": 0.0,
-            "Pitcher": 0.105,
-            "C": 0.1,
-            "2B": 0.0,
-            "1B": 0.167
-        }
-    },
-    
-    // Sample sizes (unique players per tier/position)
-    sampleSizes: {
-        "Top 10": {
-            "SS": 14,
-            "3B": 8,
-            "OF": 6,
-            "Pitcher": 10,
-            "C": 1,
-            "2B": 0,
-            "1B": 1
-        },
-        "11-25": {
-            "SS": 4,
-            "3B": 6,
-            "OF": 6,
-            "Pitcher": 27,
-            "C": 6,
-            "2B": 5,
-            "1B": 3
-        },
-        "26-50": {
-            "SS": 8,
-            "3B": 8,
-            "OF": 14,
-            "Pitcher": 63,
-            "C": 7,
-            "2B": 6,
-            "1B": 6
-        },
-        "51-75": {
-            "SS": 11,
-            "3B": 10,
-            "OF": 16,
-            "Pitcher": 61,
-            "C": 10,
-            "2B": 6,
-            "1B": 3
-        },
-        "76-100": {
-            "SS": 11,
-            "3B": 10,
-            "OF": 28,
-            "Pitcher": 57,
-            "C": 10,
-            "2B": 4,
-            "1B": 6
+        const t = z + 7.5;
+        return 0.5 * Math.log(2 * Math.PI) + (z + 0.5) * Math.log(t) - t + Math.log(x);
+    }
+
+    // Regularized lower incomplete gamma function P(a, x)
+    // Uses series expansion when x < a+1, continued fraction otherwise
+    function gammaPLower(a, x) {
+        if (x < 0) return 0;
+        if (x === 0) return 0;
+
+        if (x < a + 1) {
+            // Series expansion
+            return gammaPSeries(a, x);
+        } else {
+            // Continued fraction for Q, then P = 1 - Q
+            return 1 - gammaQCF(a, x);
         }
     }
-};
 
-// Helper functions
-function formatCurrency(value) {
-    if (value >= 1000000) {
-        return '$' + (value / 1000000).toFixed(2) + 'M';
-    } else if (value >= 1000) {
-        return '$' + Math.round(value / 1000) + 'K';
-    } else {
-        return '$' + Math.round(value);
+    function gammaPSeries(a, x) {
+        const MAX_ITER = 200;
+        const EPS = 3e-14;
+
+        const lnPrefix = a * Math.log(x) - x - lnGamma(a);
+
+        let sum = 1 / a;
+        let term = 1 / a;
+        for (let n = 1; n < MAX_ITER; n++) {
+            term *= x / (a + n);
+            sum += term;
+            if (Math.abs(term) < Math.abs(sum) * EPS) break;
+        }
+        return sum * Math.exp(lnPrefix);
     }
+
+    function gammaQCF(a, x) {
+        const MAX_ITER = 200;
+        const EPS = 3e-14;
+        const TINY = 1e-30;
+
+        const lnPrefix = a * Math.log(x) - x - lnGamma(a);
+
+        // Modified Lentz's method for continued fraction
+        let f = TINY;
+        let C = TINY;
+        let D = 1 / (x + 1 - a);
+        f = D;
+
+        for (let n = 1; n < MAX_ITER; n++) {
+            const an = n * (a - n);
+            const bn = x + 2 * n + 1 - a;
+
+            D = bn + an * D;
+            if (Math.abs(D) < TINY) D = TINY;
+            D = 1 / D;
+
+            C = bn + an / C;
+            if (Math.abs(C) < TINY) C = TINY;
+
+            const delta = C * D;
+            f *= delta;
+            if (Math.abs(delta - 1) < EPS) break;
+        }
+
+        return f * Math.exp(lnPrefix);
+    }
+
+    // Survival function: P(X > x) where X ~ Gamma(shape=a, scale=s)
+    function survivalFunction(x, a, scale) {
+        if (x <= 0) return 1;
+        const z = x / scale;   // Standardize
+        return 1 - gammaPLower(a, z);
+    }
+
+    return { survivalFunction, lnGamma };
+})();
+
+
+// ============================================================
+// PREDICTION ENGINE
+// ============================================================
+function predictCareerEarnings(rank, position, age, level) {
+    let logMu = MODEL.intercept;
+
+    // Position effect
+    logMu += MODEL.positionCoefficients[position] || 0;
+
+    // Level effect
+    logMu += MODEL.levelCoefficients[level] || 0;
+
+    // Rank (continuous)
+    logMu += MODEL.rankCoef * rank;
+
+    // Age (continuous)
+    logMu += MODEL.ageCoef * age;
+
+    // Age × Level interaction
+    logMu += (MODEL.ageLevelCoefficients[level] || 0) * age;
+
+    return Math.exp(logMu);
 }
 
-function getTier(rank) {
-    if (rank <= 10) return 'Top 10';
-    if (rank <= 25) return '11-25';
-    if (rank <= 50) return '26-50';
-    if (rank <= 75) return '51-75';
-    return '76-100';
-}
+function calculateProbabilities(mu) {
+    const scale = mu * MODEL.phi;
 
-function getConfidenceLevel(sampleSize) {
-    if (sampleSize >= 10) return { level: 'HIGH', color: '#06d6a0' };
-    if (sampleSize >= 5) return { level: 'MEDIUM', color: '#ffd60a' };
-    return { level: 'LOW', color: '#ef476f' };
-}
-
-function calculateValuation(rank, position) {
-    const tier = getTier(rank);
-    
-    // Get expected 1% value (in thousands)
-    const expected1pctK = MODEL_DATA.expectedValues[tier][position] || 0;
-    const expected1pct = expected1pctK * 1000;
-    
-    // Get rates
-    const mlbProb = MODEL_DATA.mlbSuccessRates[tier][position] || 0;
-    const starProb = MODEL_DATA.mlbStarRates[tier][position] || 0;
-    const sampleSize = MODEL_DATA.sampleSizes[tier][position] || 0;
-    
     return {
-        expected1pct: expected1pct,
-        mlbProb: mlbProb,
-        starProb: starProb,
-        tier: tier,
-        sampleSize: sampleSize
+        probMLB: GammaMath.survivalFunction(MODEL.THRESHOLD_MLB, MODEL.shape, scale),
+        probStar: GammaMath.survivalFunction(MODEL.THRESHOLD_STAR, MODEL.shape, scale),
     };
 }
 
-function generateOffers(expected1pct) {
-    const moicTargets = [3.5, 5.0, 7.5, 10.0, 15.0, 20.0];
-    const offers = [];
-    
-    moicTargets.forEach(moic => {
-        const per1pct = expected1pct / moic;
-        const per5pct = per1pct * 5;
-        const per10pct = per1pct * 10;
-        
-        offers.push({
-            moic: moic,
-            per1pct: per1pct,
-            per5pct: per5pct,
-            per10pct: per10pct
+function calculateOffers(expectedOnePct) {
+    return MODEL.MOIC_TARGETS.map(moic => {
+        const offers = {};
+        MODEL.STAKES.forEach(stake => {
+            offers[stake] = (expectedOnePct * (stake / 0.01)) / moic;
         });
+        return { moic, offers, recommended: MODEL.RECOMMENDED_MOIC.includes(moic) };
     });
-    
-    return offers;
 }
 
-function generateInsights(rank, position, results) {
+
+// ============================================================
+// FORMATTING
+// ============================================================
+function formatCurrency(value) {
+    if (value >= 1e9) return '$' + (value / 1e9).toFixed(2) + 'B';
+    if (value >= 1e6) return '$' + (value / 1e6).toFixed(2) + 'M';
+    if (value >= 1e3) return '$' + (value / 1e3).toFixed(1) + 'K';
+    return '$' + value.toFixed(0);
+}
+
+function formatCurrencyPrecise(value) {
+    return '$' + Math.round(value).toLocaleString('en-US');
+}
+
+function formatPercent(value) {
+    return (value * 100).toFixed(2) + '%';
+}
+
+function getLevelLabel(level) {
+    const labels = {
+        1: 'CPX/DSL/R', 2: 'A', 3: 'A+', 4: 'AA', 5: 'AAA', 6: 'MLB'
+    };
+    return labels[level] || 'Other';
+}
+
+
+// ============================================================
+// INSIGHT GENERATION
+// ============================================================
+function generateInsights(rank, position, age, level, mu, probs) {
     const insights = [];
-    const tier = results.tier;
-    const confidence = getConfidenceLevel(results.sampleSize);
-    
-    // Sample size warning (first if low)
-    if (confidence.level === 'LOW') {
-        insights.push({
-            icon: '🚨',
-            text: `LOW CONFIDENCE: Only ${results.sampleSize} historical player(s) in ${tier} ${position}. Expected values are statistically unreliable. Requires risk committee approval.`
-        });
+
+    // Age-Level interaction insight
+    const ageAtLevel = getAgeLevelInsight(age, level);
+    if (ageAtLevel) {
+        insights.push({ type: 'info', title: 'Age–Level Assessment', text: ageAtLevel });
     }
-    
-    // MLB Success insight
-    if (results.mlbProb >= 0.80) {
-        insights.push({
-            icon: '✅',
-            text: `High success rate: ${(results.mlbProb * 100).toFixed(0)}% of ${tier} ${position} prospects made MLB (earned $5M+). Strong probability of reaching the majors.`
-        });
-    } else if (results.mlbProb >= 0.60) {
-        insights.push({
-            icon: '📊',
-            text: `Moderate success rate: ${(results.mlbProb * 100).toFixed(0)}% MLB rate for ${tier} ${position}. Balanced risk/reward tier.`
-        });
-    } else if (results.mlbProb >= 0.40) {
-        insights.push({
-            icon: '⚠️',
-            text: `Lower success rate: ${(results.mlbProb * 100).toFixed(0)}% MLB rate. Higher risk but can offer better MOIC targets for portfolio diversity.`
-        });
-    } else {
-        insights.push({
-            icon: '🎲',
-            text: `Lottery ticket: Only ${(results.mlbProb * 100).toFixed(0)}% reach MLB. Very high risk - requires 15-20x MOIC targets and portfolio diversification.`
-        });
-    }
-    
-    // Star potential insight
-    if (results.starProb >= 0.50) {
-        insights.push({
-            icon: '⭐',
-            text: `Exceptional star potential: ${(results.starProb * 100).toFixed(0)}% became MLB stars ($50M+). Elite prospects with franchise player upside.`
-        });
-    } else if (results.starProb >= 0.25) {
-        insights.push({
-            icon: '🌟',
-            text: `Good star potential: ${(results.starProb * 100).toFixed(0)}% reached $50M+ earnings. Solid chance at All-Star caliber returns.`
-        });
-    } else if (results.starProb > 0) {
-        insights.push({
-            icon: '💫',
-            text: `Limited star potential: ${(results.starProb * 100).toFixed(0)}% became stars. Most returns will come from solid MLB careers rather than superstars.`
-        });
-    } else {
-        insights.push({
-            icon: '📉',
-            text: `No historical stars (0%) in this tier/position combination. Very limited upside - consider avoiding or requiring extreme MOIC targets.`
-        });
-    }
-    
-    // Rank-specific insights
+
+    // Rank tier insight
     if (rank <= 10) {
-        insights.push({
-            icon: '🏆',
-            text: `Elite tier: Top 10 prospects are "base hits" - target 5-10x MOICs for high-probability returns with star upside.`
-        });
+        insights.push({ type: 'info', title: 'Elite Prospect', text: `Rank ${rank} places this prospect in the elite tier. Historically, top-10 prospects show the highest probability of MLB success and star-level earnings, though significant variance remains.` });
+    } else if (rank <= 25) {
+        insights.push({ type: 'info', title: 'Premium Prospect', text: `Rank ${rank} indicates strong consensus prospect value. Prospects ranked 11–25 have historically shown solid MLB success rates with meaningful star upside.` });
+    } else if (rank <= 50) {
+        insights.push({ type: 'info', title: 'Mid-Tier Prospect', text: `Rank ${rank} places this prospect in the middle tier. Expected value is moderate — investment success depends heavily on age, level, and developmental trajectory.` });
+    } else if (rank <= 75) {
+        insights.push({ type: 'info', title: 'Lower-Tier Prospect', text: `Rank ${rank} represents a higher-risk, lower-expected-value investment. Closer scrutiny of age and level progression is critical for valuation accuracy.` });
+    } else {
+        insights.push({ type: 'info', title: 'Fringe Prospect', text: `Rank ${rank} is in the lowest tier of the Top 100. Historical success rates are lower, but select prospects at this level have delivered outsized returns — due diligence on specific skills is essential.` });
     }
-    
-    if (rank >= 26 && rank <= 50) {
-        insights.push({
-            icon: '📊',
-            text: `Sweet spot tier: Balanced risk/return. Target 7.5-10x MOIC. Excellent for portfolio diversification across positions.`
-        });
+
+    // Success probability context
+    if (probs.probMLB >= 0.75) {
+        insights.push({ type: 'info', title: 'High MLB Probability', text: `At ${formatPercent(probs.probMLB)} projected MLB success rate, this prospect has strong expected value. Star probability of ${formatPercent(probs.probStar)} suggests meaningful upside potential.` });
+    } else if (probs.probMLB < 0.50) {
+        insights.push({ type: 'warning', title: 'Below-Average MLB Probability', text: `MLB success probability of ${formatPercent(probs.probMLB)} is below average for Top 100 prospects. Consider whether the age-level trajectory supports improvement, or if this represents a declining asset.` });
     }
-    
-    if (rank > 75) {
-        insights.push({
-            icon: '🎰',
-            text: `Lottery ticket tier: Require 15-20x MOICs minimum. Need 10+ positions at this tier to offset risk through portfolio approach.`
-        });
-    }
-    
-    // Investment guidance
-    const offer_at_7_5x = results.expected1pct / 7.5;
-    const offer_at_10x = results.expected1pct / 10.0;
-    
-    insights.push({
-        icon: '💼',
-        text: `Recommended offer range: ${formatCurrency(offer_at_10x)} (10x MOIC) to ${formatCurrency(offer_at_7_5x)} (7.5x MOIC) per 1% ownership.`
-    });
-    
+
     return insights;
 }
 
-function calculate() {
-    // Get inputs
-    const rankInput = document.getElementById('prospectRank');
-    const positionInput = document.getElementById('position');
-    
-    const rank = parseInt(rankInput.value);
-    const position = positionInput.value;
-    
-    // Validation
-    let isValid = true;
-    
-    if (!rank || rank < 1 || rank > 100) {
-        rankInput.classList.add('is-invalid');
-        isValid = false;
+function getAgeLevelInsight(age, level) {
+    // Age expectations by level (typical age ranges)
+    const typical = { 1: [17, 20], 2: [19, 22], 3: [20, 23], 4: [21, 24], 5: [22, 25], 6: [22, 26] };
+    const range = typical[level];
+    if (!range) return null;
+
+    const levelLabel = getLevelLabel(level);
+
+    if (age < range[0]) {
+        return `At age ${age} in ${levelLabel}, this prospect is ahead of the typical developmental curve (ages ${range[0]}–${range[1]}). The model's Age × Level interaction rewards younger prospects at higher levels with significantly enhanced valuations.`;
+    } else if (age > range[1]) {
+        return `At age ${age} in ${levelLabel}, this prospect is older than typical for this level (ages ${range[0]}–${range[1]}). The model applies an "Age–Level penalty" — each year without advancement reduces projected earnings. This compounding effect is reflected in the lower valuation.`;
     } else {
-        rankInput.classList.remove('is-invalid');
+        return `At age ${age} in ${levelLabel}, this prospect is within the typical developmental window (ages ${range[0]}–${range[1]}). The Age × Level interaction is neutral — no unusual age premium or penalty applies.`;
     }
-    
-    if (!position) {
-        positionInput.classList.add('is-invalid');
-        isValid = false;
-    } else {
-        positionInput.classList.remove('is-invalid');
-    }
-    
-    if (!isValid) return;
-    
-    // Calculate
-    const results = calculateValuation(rank, position);
-    const tier = results.tier;
-    const sampleSize = results.sampleSize;
-    const confidence = getConfidenceLevel(sampleSize);
-    
-    // Check if we have data for this combination
-    if (sampleSize === 0) {
-        alert(`No historical data available for ${tier} ${position} prospects. Please try a different combination.`);
-        return;
-    }
-    
-    // Show/hide confidence warning
-    const warningDiv = document.getElementById('confidenceWarning');
-    const warningText = document.getElementById('warningText');
-    
-    if (confidence.level === 'LOW') {
-        warningText.textContent = `This ${tier} ${position} combination has only ${sampleSize} historical player(s). Expected values are statistically unreliable and should not be used for deal-making without explicit risk acknowledgment.`;
-        warningDiv.style.display = 'block';
-    } else {
-        warningDiv.style.display = 'none';
-    }
-    
-    // Update summary cards
-    document.getElementById('mlbSuccessRate').textContent = `${(results.mlbProb * 100).toFixed(1)}%`;
-    document.getElementById('mlbStarRate').textContent = `${(results.starProb * 100).toFixed(1)}%`;
-    document.getElementById('expected1pct').textContent = formatCurrency(results.expected1pct);
-    
-    // Update confidence level with color
-    const confidenceEl = document.getElementById('confidenceLevel');
-    confidenceEl.textContent = confidence.level;
-    confidenceEl.style.color = confidence.color;
-    
-    // Display record count
-    document.getElementById('recordCount').textContent = sampleSize;
-    
-    // Update offer table
-    const offers = generateOffers(results.expected1pct);
-    const tableBody = document.getElementById('offerTableBody');
-    tableBody.innerHTML = '';
-    
-    offers.forEach((offer, index) => {
-        const row = document.createElement('tr');
-        // Highlight 7.5x and 10x (indices 2-3) as recommended sweet spot
-        if (index === 2 || index === 3) {
-            row.classList.add('recommended');
-        }
-        
-        row.innerHTML = `
-            <td><span class="moic-label">${offer.moic}x</span></td>
-            <td>${formatCurrency(offer.per1pct)}</td>
-            <td>${formatCurrency(offer.per5pct)}</td>
-            <td>${formatCurrency(offer.per10pct)}</td>
-        `;
-        
-        tableBody.appendChild(row);
-    });
-    
-    // Update insights
-    const insights = generateInsights(rank, position, results);
-    const insightsContainer = document.getElementById('insightsContent');
-    insightsContainer.innerHTML = '';
-    
-    insights.forEach(insight => {
-        const div = document.createElement('div');
-        div.className = 'insight-item';
-        div.textContent = `${insight.icon} ${insight.text}`;
-        insightsContainer.appendChild(div);
-    });
-    
-    // Show results
-    document.getElementById('results').style.display = 'block';
-    document.getElementById('results').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-// Initialize
-document.addEventListener('DOMContentLoaded', function() {
-    // Initialize Bootstrap tooltips
-    var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'))
-    var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
-        return new bootstrap.Tooltip(tooltipTriggerEl)
+
+// ============================================================
+// UI RENDERING
+// ============================================================
+function renderResults(rank, position, age, level) {
+    const mu = predictCareerEarnings(rank, position, age, level);
+    const probs = calculateProbabilities(mu);
+    const expectedOnePct = mu * 0.01;
+    const offers = calculateOffers(expectedOnePct);
+    const insights = generateInsights(rank, position, age, level, mu, probs);
+
+    // Profile summary
+    document.getElementById('results-profile').textContent =
+        `${position} · Rank ${rank} · Age ${age} · ${getLevelLabel(level)}`;
+
+    // Metric cards
+    document.getElementById('metric-earnings').textContent = formatCurrency(mu);
+    document.getElementById('metric-earnings-sub').textContent = formatCurrencyPrecise(mu);
+    document.getElementById('metric-1pct').textContent = formatCurrency(expectedOnePct);
+
+    document.getElementById('metric-mlb').textContent = formatPercent(probs.probMLB);
+    const mlbDot = document.getElementById('mlb-dot');
+    mlbDot.className = 'status-dot ' + (probs.probMLB >= 0.65 ? 'status-dot--green' : probs.probMLB >= 0.50 ? 'status-dot--amber' : 'status-dot--red');
+    document.getElementById('metric-mlb-sub').textContent = probs.probMLB >= 0.65 ? 'Strong' : probs.probMLB >= 0.50 ? 'Moderate' : 'Below avg';
+
+    document.getElementById('metric-star').textContent = formatPercent(probs.probStar);
+    const starDot = document.getElementById('star-dot');
+    starDot.className = 'status-dot ' + (probs.probStar >= 0.40 ? 'status-dot--green' : probs.probStar >= 0.20 ? 'status-dot--amber' : 'status-dot--red');
+    document.getElementById('metric-star-sub').textContent = probs.probStar >= 0.40 ? 'High upside' : probs.probStar >= 0.20 ? 'Moderate upside' : 'Limited upside';
+
+    // Offer table
+    const tbody = document.getElementById('offer-tbody');
+    tbody.innerHTML = '';
+    offers.forEach(row => {
+        const tr = document.createElement('tr');
+        if (row.recommended) tr.classList.add('recommended');
+        const moicTd = document.createElement('td');
+        moicTd.textContent = row.moic.toFixed(1) + 'x MOIC';
+        tr.appendChild(moicTd);
+
+        MODEL.STAKES.forEach(stake => {
+            const td = document.createElement('td');
+            td.textContent = formatCurrencyPrecise(row.offers[stake]);
+            tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
     });
-    
-    document.getElementById('calculateBtn').addEventListener('click', calculate);
-    
-    // Allow Enter key to calculate
-    document.getElementById('prospectRank').addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') calculate();
+
+    // Insights
+    const container = document.getElementById('insights-container');
+    container.innerHTML = '';
+    insights.forEach(insight => {
+        const div = document.createElement('div');
+        div.className = 'insight-box' + (insight.type === 'warning' ? ' insight-box--warning' : '');
+        div.innerHTML = `
+            <div class="insight-box__title">${insight.title}</div>
+            <div class="insight-box__text">${insight.text}</div>
+        `;
+        container.appendChild(div);
     });
+
+    // Alert for edge-case positions
+    const alertBanner = document.getElementById('alert-banner');
+    const rarPositions = ['C/3B', 'DH', 'LHP/1B', 'LF', 'CF'];
+    if (rarPositions.includes(position)) {
+        alertBanner.classList.add('visible');
+        document.getElementById('alert-text').textContent =
+            `Position "${position}" has limited representation in the training data. Predictions for this position carry higher uncertainty. Use additional due diligence.`;
+    } else {
+        alertBanner.classList.remove('visible');
+    }
+
+    // Show results
+    const section = document.getElementById('results-section');
+    section.classList.add('visible');
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+
+// ============================================================
+// INPUT VALIDATION & EVENT HANDLING
+// ============================================================
+function validateAndCalculate() {
+    const rankInput = document.getElementById('input-rank');
+    const ageInput = document.getElementById('input-age');
+
+    const rank = parseInt(rankInput.value, 10);
+    const position = document.getElementById('input-position').value;
+    const age = parseInt(ageInput.value, 10);
+    const level = parseInt(document.getElementById('input-level').value, 10);
+
+    // Validate rank
+    if (isNaN(rank) || rank < 1 || rank > 100) {
+        rankInput.focus();
+        rankInput.select();
+        return;
+    }
+
+    // Validate age
+    if (isNaN(age) || age < 16 || age > 30) {
+        ageInput.focus();
+        ageInput.select();
+        return;
+    }
+
+    renderResults(rank, position, age, level);
+}
+
+// Button click
+document.getElementById('btn-calculate').addEventListener('click', validateAndCalculate);
+
+// Enter key on any input
+document.querySelectorAll('.field__input, .field__select').forEach(el => {
+    el.addEventListener('keydown', e => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            validateAndCalculate();
+        }
+    });
+});
+
+// Initial calculation on page load
+document.addEventListener('DOMContentLoaded', () => {
+    validateAndCalculate();
 });
