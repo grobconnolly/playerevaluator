@@ -232,6 +232,79 @@ body {
     cursor: pointer;
 }
 
+/* === PROSPECT LOOKUP === */
+.field--lookup {
+    margin-bottom: 20px;
+    max-width: 480px;
+}
+
+.lookup {
+    position: relative;
+}
+
+.lookup__input {
+    width: 100%;
+}
+
+.lookup__list {
+    display: none;
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    border: 1px solid var(--border-accent);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-elevated);
+    list-style: none;
+    z-index: 200;
+    max-height: 320px;
+    overflow-y: auto;
+}
+
+.lookup__list.visible { display: block; }
+
+.lookup__item {
+    display: flex;
+    align-items: baseline;
+    gap: 10px;
+    padding: 9px 14px;
+    cursor: pointer;
+    border-bottom: 1px solid var(--border-subtle);
+    transition: background var(--transition);
+}
+
+.lookup__item:last-child { border-bottom: none; }
+
+.lookup__item:hover,
+.lookup__item--active {
+    background: var(--bg-card-hover);
+}
+
+.lookup__rank {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--accent-gold);
+    flex-shrink: 0;
+    min-width: 34px;
+}
+
+.lookup__name {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+}
+
+.lookup__meta {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-muted);
+    margin-left: auto;
+    white-space: nowrap;
+}
+
 .field__input:focus,
 .field__select:focus {
     outline: none;
@@ -340,7 +413,16 @@ body {
     display: flex;
     align-items: baseline;
     justify-content: space-between;
+    gap: 12px;
     margin-bottom: 20px;
+}
+
+@media (max-width: 640px) {
+    .results-header {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 4px;
+    }
 }
 
 .results-header__title {
@@ -406,6 +488,13 @@ body {
     margin-top: 4px;
 }
 
+.metric-card__sub--range {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+}
+
 .metric-card--accent {
     border-color: var(--accent-gold-dim);
     background: linear-gradient(135deg, var(--accent-gold-bg) 0%, var(--bg-card) 100%);
@@ -431,13 +520,70 @@ body {
     margin-bottom: 24px;
 }
 
+.offer-section__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 10px;
+}
+
 .offer-section__title {
     font-size: 14px;
     font-weight: 600;
     color: var(--text-secondary);
-    margin-bottom: 12px;
     text-transform: uppercase;
     letter-spacing: 0.8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.screen-toggle {
+    display: inline-flex;
+    background: var(--bg-input);
+    border: 1px solid var(--border-subtle);
+    border-radius: var(--radius-md);
+    padding: 3px;
+    gap: 2px;
+}
+
+.screen-toggle__btn {
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-family: var(--font-body);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 5px 12px;
+    border-radius: calc(var(--radius-md) - 4px);
+    cursor: pointer;
+    transition: all var(--transition);
+    white-space: nowrap;
+}
+
+.screen-toggle__btn:hover {
+    color: var(--text-secondary);
+}
+
+.screen-toggle__btn--active {
+    background: var(--accent-gold-bg);
+    color: var(--accent-gold);
+}
+
+.pricing-waterfall {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-bottom: 12px;
+    line-height: 1.6;
+}
+
+.comps-strip {
+    font-size: 12px;
+    color: var(--text-muted);
+    margin-top: 10px;
 }
 
 .offer-table-wrap {
@@ -445,6 +591,12 @@ body {
     border: 1px solid var(--border-subtle);
     border-radius: var(--radius-lg);
     overflow: hidden;
+    overflow-x: auto;
+}
+
+.offer-table td,
+.offer-table th {
+    white-space: nowrap;
 }
 
 .offer-table {
@@ -498,6 +650,10 @@ body {
     content: ' ★';
     font-size: 11px;
 }
+
+.offer-table td.offer-table__prob.prob--green { color: var(--green); }
+.offer-table td.offer-table__prob.prob--amber { color: var(--amber); }
+.offer-table td.offer-table__prob.prob--red { color: var(--red); }
 
 /* === INSIGHTS === */
 .insight-box {

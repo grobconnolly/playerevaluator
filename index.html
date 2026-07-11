@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Front Row Capital Partners — MLB Prospect Investment Valuation Model powered by GEE regression analysis.">
-    <title>Front Row Capital Partners — Prospect Valuation Model v6.0</title>
+    <title>Front Row Capital Partners — Prospect Valuation Model v7.0</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
@@ -21,13 +21,31 @@
         </div>
         <p class="header__subtitle">
             MLB Prospect Investment Valuation Model
-            <span class="header__version">v6.0 — GEE</span>
+            <span class="header__version">v7.0 — GEE + NPV</span>
         </p>
     </header>
 
     <!-- INPUT SECTION -->
     <section class="input-section" aria-labelledby="input-heading">
         <h2 id="input-heading" class="sr-only">Prospect Input Parameters</h2>
+
+        <div class="field field--lookup">
+            <label class="field__label" for="input-player">
+                Load Prospect
+                <button type="button" class="field__info" tabindex="0" aria-label="Information about prospect lookup">
+                    ?
+                    <span class="tooltip-text">Search the current FanGraphs Top 100 by player name or team. Selecting a player autofills Rank, Position, Age, and Level. You can still adjust any field manually.</span>
+                </button>
+            </label>
+            <div class="lookup">
+                <input id="input-player" class="field__input lookup__input" type="text"
+                       placeholder="Search FanGraphs Top 100 — name or team…"
+                       autocomplete="off" role="combobox" aria-expanded="false"
+                       aria-controls="lookup-list" aria-autocomplete="list">
+                <ul id="lookup-list" class="lookup__list" role="listbox" aria-label="Matching prospects"></ul>
+            </div>
+            <span class="field__hint" id="lookup-hint">2026 Board · or enter parameters manually below</span>
+        </div>
 
         <div class="input-grid">
             <div class="field">
@@ -76,7 +94,7 @@
                     </button>
                 </label>
                 <input id="input-age" class="field__input" type="number" min="16" max="30" step="1" value="20" placeholder="16–30" required aria-describedby="age-hint">
-                <span id="age-hint" class="field__hint">Younger = higher value</span>
+                <span id="age-hint" class="field__hint">See Age–Level assessment</span>
             </div>
 
             <div class="field">
@@ -129,11 +147,12 @@
                     Predicted Career Earnings
                     <button type="button" class="field__info" tabindex="0" aria-label="About predicted earnings">
                         ?
-                        <span class="tooltip-text">GEE model prediction of inflation-adjusted career earnings based on Rank, Position, Age, and Highest Level. Uses Gamma distribution with log link.</span>
+                        <span class="tooltip-text">GEE model prediction of inflation-adjusted career earnings (expected value / mean). The Gamma distribution is heavily right-skewed, so the mean is upside-weighted — the median and P25–P75 range below show the full spread of outcomes.</span>
                     </button>
                 </div>
                 <div class="metric-card__value" id="metric-earnings">—</div>
                 <div class="metric-card__sub" id="metric-earnings-sub"></div>
+                <div class="metric-card__sub metric-card__sub--range" id="metric-earnings-range"></div>
             </div>
 
             <div class="metric-card">
@@ -141,10 +160,11 @@
                     Expected 1% Value
                     <button type="button" class="field__info" tabindex="0" aria-label="About expected 1% value">
                         ?
-                        <span class="tooltip-text">The expected value of a 1% ownership stake in the prospect's future career earnings. Calculated as Predicted Career Earnings × 0.01.</span>
+                        <span class="tooltip-text">Undiscounted expected value of a 1% stake (Predicted Career Earnings × 0.01). The fair NPV below discounts it for the years until the money actually arrives, at the base real rate.</span>
                     </button>
                 </div>
                 <div class="metric-card__value" id="metric-1pct">—</div>
+                <div class="metric-card__sub" id="metric-1pct-sub"></div>
             </div>
 
             <div class="metric-card">
@@ -176,20 +196,36 @@
 
         <!-- OFFER TABLE -->
         <div class="offer-section">
-            <h3 class="offer-section__title">MOIC-Based Offer Table</h3>
+            <div class="offer-section__head">
+                <h3 class="offer-section__title">
+                    Target Offers — Upfront Cash
+                    <button type="button" class="field__info" tabindex="0" aria-label="About target offer pricing">
+                        ?
+                        <span class="tooltip-text">Offer = stake × predicted earnings × (1 − screening haircut) × time discount ÷ residual margin. Each risk is priced once: bust risk is inside the prediction, time and league risk in the real discount rate, seller private information in the haircut, model error in the margin.</span>
+                    </button>
+                </h3>
+                <div class="screen-toggle" role="radiogroup" aria-label="Adverse-selection screening tier">
+                    <button type="button" class="screen-toggle__btn" data-haircut="screened">Screened −10%</button>
+                    <button type="button" class="screen-toggle__btn screen-toggle__btn--active" data-haircut="base">Base −20%</button>
+                    <button type="button" class="screen-toggle__btn" data-haircut="unscreened">Unscreened −30%</button>
+                </div>
+            </div>
+            <p class="pricing-waterfall" id="pricing-waterfall"></p>
             <div class="offer-table-wrap">
-                <table class="offer-table" id="offer-table" aria-label="Investment offers at various MOIC targets">
+                <table class="offer-table" id="offer-table" aria-label="Target upfront-cash offers by pricing tier">
                     <thead>
                         <tr>
-                            <th scope="col">Target MOIC</th>
+                            <th scope="col">Pricing Tier</th>
                             <th scope="col">1% Stake</th>
                             <th scope="col">5% Stake</th>
                             <th scope="col">10% Stake</th>
+                            <th scope="col">P(≥1× Payback)</th>
                         </tr>
                     </thead>
                     <tbody id="offer-tbody"></tbody>
                 </table>
             </div>
+            <p class="comps-strip">Market comps per 1% (2025$): Mejía $36K · Vargas $52K · BLA book average $44–55K · elite-teen top (Tatis-era) $200–260K</p>
         </div>
 
         <!-- INSIGHTS -->
@@ -202,11 +238,14 @@
         <p>
             GEE regression (Gamma family, log link) fitted on 800 observations from 495 unique prospects ranked in the FanGraphs Top 100 (2012–2019).
             Career earnings inflation-adjusted using MLB average salaries normalized to 2025 dollars. Model predictors: Rank (continuous), Position, Age, Highest Minor League Level, and Age × Level interaction.
-            Probabilities derived from Gamma survival function. R² (Corr²) = 0.1936. This tool provides estimates for informational purposes; all investment decisions should incorporate additional due diligence.
+            Probabilities and percentile ranges derived from the fitted Gamma distribution. R² (Corr²) = 0.1936 — predictions carry substantial uncertainty; the P25–P75 range and P(≥1× Payback) column reflect this.
+            Target offers use upfront-cash NPV pricing: predicted earnings are in real 2025 dollars, discounted at a real rate (base 12%, aggressive 10%, conservative 15%) over the level's earnings-weighted duration (7.2y MLB-debuted to 12.7y CPX/DSL), with an adverse-selection haircut (10–30% by screening tier) and a residual margin (1.5–2.0×, +0.25 at CPX/DSL) for model error, deal costs, and collection risk. Each risk is priced exactly once; bust risk is already in the Gamma mean.
+            Prospect lookup data: FanGraphs "The Board" 2026 report (retrieved July 2026). This tool provides estimates for informational purposes; all investment decisions should incorporate additional due diligence.
         </p>
     </footer>
 </div>
 
+<script src="players-data.js"></script>
 <script src="script.js"></script>
 
 </body>
