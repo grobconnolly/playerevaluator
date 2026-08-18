@@ -153,8 +153,11 @@ const GammaMath = (() => {
         const lnPrefix = a * Math.log(x) - x - lnGamma(a);
 
         // Modified Lentz's method for continued fraction
+        // C initializes to 1/TINY (a huge value) per Lentz's algorithm; initializing
+        // it to TINY made the first C update explode and returned garbage survival
+        // probabilities whenever x/scale exceeded a+1 (low-mu players, high thresholds).
         let f = TINY;
-        let C = TINY;
+        let C = 1 / TINY;
         let D = 1 / (x + 1 - a);
         f = D;
 
