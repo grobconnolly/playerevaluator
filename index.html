@@ -228,6 +228,69 @@
             <p class="comps-strip">Market comps per 1% (2025$): Mejía $36K · Vargas $52K · BLA book average $44–55K · elite-teen top (Tatis-era) $200–260K</p>
         </div>
 
+        <!-- OFFER SANDBOX -->
+        <div class="offer-section sandbox">
+            <div class="offer-section__head">
+                <h3 class="offer-section__title">
+                    Offer Sandbox — Structure a Custom Deal
+                    <button type="button" class="field__info" tabindex="0" aria-label="About the offer sandbox">
+                        ?
+                        <span class="tooltip-text">Drag the sliders to test any upfront payment and stake combination against this player's modeled earnings distribution. The verdict compares your price per 1% with the model's tier quotes at the current screening haircut; the stats show what the deal returns if earnings land at the mean, and the probability it pays back at all.</span>
+                    </button>
+                </h3>
+                <div class="sandbox__verdict" id="sandbox-verdict" role="status"></div>
+            </div>
+
+            <div class="sandbox__controls">
+                <div class="sandbox__control">
+                    <label class="sandbox__label" for="sandbox-offer">Upfront Payment</label>
+                    <input type="range" id="sandbox-offer" class="sandbox__slider" min="10000" max="1500000" step="5000" value="300000"
+                           aria-describedby="sandbox-offer-value">
+                    <span class="sandbox__value" id="sandbox-offer-value">$300,000</span>
+                </div>
+                <div class="sandbox__control">
+                    <label class="sandbox__label" for="sandbox-stake">Stake (% of professional earnings)</label>
+                    <input type="range" id="sandbox-stake" class="sandbox__slider" min="0.5" max="10" step="0.5" value="4"
+                           aria-describedby="sandbox-stake-value">
+                    <span class="sandbox__value" id="sandbox-stake-value">4.0%</span>
+                </div>
+            </div>
+
+            <div class="sandbox__grid">
+                <div class="sandbox__stat">
+                    <div class="sandbox__stat-label">Price per 1%</div>
+                    <div class="sandbox__stat-value" id="sandbox-per-pct">—</div>
+                    <div class="sandbox__stat-sub" id="sandbox-per-pct-sub"></div>
+                </div>
+                <div class="sandbox__stat">
+                    <div class="sandbox__stat-label">Expected Multiple</div>
+                    <div class="sandbox__stat-value" id="sandbox-multiple">—</div>
+                    <div class="sandbox__stat-sub" id="sandbox-multiple-sub"></div>
+                </div>
+                <div class="sandbox__stat">
+                    <div class="sandbox__stat-label">NPV Multiple</div>
+                    <div class="sandbox__stat-value" id="sandbox-npv">—</div>
+                    <div class="sandbox__stat-sub" id="sandbox-npv-sub"></div>
+                </div>
+                <div class="sandbox__stat">
+                    <div class="sandbox__stat-label">Break-even Career Earnings</div>
+                    <div class="sandbox__stat-value" id="sandbox-breakeven">—</div>
+                    <div class="sandbox__stat-sub" id="sandbox-breakeven-sub"></div>
+                </div>
+                <div class="sandbox__stat">
+                    <div class="sandbox__stat-label">P(≥1× Payback)</div>
+                    <div class="sandbox__stat-value" id="sandbox-payback">—</div>
+                    <div class="sandbox__stat-sub" id="sandbox-payback-sub"></div>
+                </div>
+                <div class="sandbox__stat">
+                    <div class="sandbox__stat-label">Stake Payout Range</div>
+                    <div class="sandbox__stat-value" id="sandbox-range">—</div>
+                    <div class="sandbox__stat-sub" id="sandbox-range-sub"></div>
+                </div>
+            </div>
+            <p class="pricing-waterfall" id="sandbox-summary"></p>
+        </div>
+
         <!-- INSIGHTS -->
         <div id="insights-container"></div>
     </section>

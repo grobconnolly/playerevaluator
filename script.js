@@ -494,6 +494,10 @@ function renderResults(rank, position, age, level, scrollToResults = true) {
         alertBanner.classList.remove('visible');
     }
 
+    // Offer sandbox — recompute against the new player profile
+    sandboxState = { mu, level };
+    updateSandbox();
+
     // Show results
     const section = document.getElementById('results-section');
     section.classList.add('visible');
@@ -620,6 +624,118 @@ document.querySelectorAll('.screen-toggle__btn').forEach(btn => {
         validateAndCalculate(false);
     });
 });
+
+
+// ============================================================
+// OFFER SANDBOX — custom deal structuring
+// ============================================================
+let sandboxState = null;   // { mu, level } from the last render
+
+const Sandbox = (() => {
+    const offerEl = document.getElementById('sandbox-offer');
+    const stakeEl = document.getElementById('sandbox-stake');
+
+    function tierQuote(mu, level, haircut, stake) {
+        // Same math as calculateOffers, for an arbitrary stake
+        return calculateOffers(mu, level, haircut).map(t => ({
+            key: t.key, label: t.label, quote: (mu * stake) / t.mReq, df: t.df, mReq: t.mReq,
+            recommended: t.recommended,
+        }));
+    }
+
+    function update() {
+        if (!sandboxState) return;
+        const { mu, level } = sandboxState;
+        const offer = parseInt(offerEl.value, 10);
+        const stake = parseFloat(stakeEl.value) / 100;
+        const haircut = MODEL.PRICING.haircuts[screeningTier];
+        const scale = mu * MODEL.phi;
+        const D = MODEL.PRICING.durationYears[level];
+
+        document.getElementById('sandbox-offer-value').textContent = formatCurrencyPrecise(offer);
+        document.getElementById('sandbox-stake-value').textContent = (stake * 100).toFixed(1) + '%';
+
+        // Price per 1% vs the base-tier model quote
+        const perPct = offer / (stake * 100);
+        const quotes = tierQuote(mu, level, haircut, stake);
+        const base = quotes.find(q => q.recommended);
+        const cons = quotes.find(q => q.key === 'conservative');
+        const agg = quotes.find(q => q.key === 'aggressive');
+        const vsBase = (perPct / (base.quote / (stake * 100)) - 1) * 100;
+        document.getElementById('sandbox-per-pct').textContent = formatCurrencyPrecise(perPct);
+        document.getElementById('sandbox-per-pct-sub').textContent =
+            `Model base quote ${formatCurrencyPrecise(base.quote / (stake * 100))} · ` +
+            (vsBase >= 0 ? `${vsBase.toFixed(0)}% above` : `${(-vsBase).toFixed(0)}% below`);
+
+        // Expected multiple (undiscounted) and its IRR over the level duration
+        const expMult = (mu * stake) / offer;
+        const multEl = document.getElementById('sandbox-multiple');
+        multEl.textContent = expMult.toFixed(2) + 'x';
+        multEl.className = 'sandbox__stat-value ' + (expMult >= base.mReq ? 'stat--green' : expMult >= agg.mReq ? 'stat--amber' : 'stat--red');
+        const impliedIrr = (Math.pow(expMult, 1 / D) - 1) * 100;
+        document.getElementById('sandbox-multiple-sub').textContent =
+            `~${impliedIrr.toFixed(1)}% real IRR over ${D}y if earnings hit the mean`;
+
+        // NPV multiple at the base tier's discounting
+        const npvMult = expMult * base.df;
+        const npvEl = document.getElementById('sandbox-npv');
+        npvEl.textContent = npvMult.toFixed(2) + 'x';
+        npvEl.className = 'sandbox__stat-value ' + (npvMult >= 1.75 ? 'stat--green' : npvMult >= 1 ? 'stat--amber' : 'stat--red');
+        document.getElementById('sandbox-npv-sub').textContent =
+            `PV of expected payout ÷ cash out · DF ${base.df.toFixed(3)} @ 12% real`;
+
+        // Break-even career earnings and its probability
+        const breakEven = offer / stake;
+        document.getElementById('sandbox-breakeven').textContent = formatCurrency(breakEven);
+        document.getElementById('sandbox-breakeven-sub').textContent =
+            `Career earnings where payout = ${formatCurrencyPrecise(offer)}`;
+        const pPayback = GammaMath.survivalFunction(breakEven, MODEL.shape, scale);
+        const payEl = document.getElementById('sandbox-payback');
+        payEl.textContent = formatPercent(pPayback);
+        payEl.className = 'sandbox__stat-value ' + (pPayback >= 0.60 ? 'stat--green' : pPayback >= 0.45 ? 'stat--amber' : 'stat--red');
+        // NPV break-even: payout arrives at duration D, so PV covers the offer only if
+        // earnings reach breakEven / DF — a materially higher bar than cash-on-cash.
+        const pNpvBreakEven = GammaMath.survivalFunction(breakEven / base.df, MODEL.shape, scale);
+        document.getElementById('sandbox-payback-sub').textContent =
+            `P(NPV ≥ 0 @ 12% real): ${formatPercent(pNpvBreakEven)} — the discounted bar`;
+
+        // Payout quantiles on this stake
+        const q25 = GammaMath.quantile(0.25, MODEL.shape, scale) * stake;
+        const q50 = GammaMath.quantile(0.50, MODEL.shape, scale) * stake;
+        const q75 = GammaMath.quantile(0.75, MODEL.shape, scale) * stake;
+        document.getElementById('sandbox-range').textContent =
+            `${formatCurrency(q25)} – ${formatCurrency(q75)}`;
+        document.getElementById('sandbox-range-sub').textContent =
+            `P25–P75 · median ${formatCurrency(q50)} · mean ${formatCurrency(mu * stake)}`;
+
+        // Verdict pill vs tier quotes (aggressive pays most, conservative least)
+        const verdict = document.getElementById('sandbox-verdict');
+        let cls, text;
+        if (offer <= cons.quote) {
+            cls = 'green'; text = `RICH MARGIN — ${((1 - offer / cons.quote) * 100).toFixed(0)}% below the conservative quote`;
+        } else if (offer <= base.quote) {
+            cls = 'green'; text = 'ON TARGET — between conservative and base quotes';
+        } else if (offer <= agg.quote) {
+            cls = 'amber'; text = 'THIN MARGIN — between base and aggressive quotes';
+        } else {
+            cls = 'red'; text = `ABOVE FAIR VALUE — ${((offer / agg.quote - 1) * 100).toFixed(0)}% over the aggressive quote`;
+        }
+        verdict.className = 'sandbox__verdict sandbox__verdict--' + cls;
+        verdict.textContent = text;
+
+        // Summary line
+        document.getElementById('sandbox-summary').textContent =
+            `${formatCurrencyPrecise(offer)} for ${(stake * 100).toFixed(1)}% → needs ${ (offer / (mu * stake) * 100).toFixed(0)}% of expected earnings to land · ` +
+            `model would pay ${formatCurrencyPrecise(cons.quote)} (conservative) / ${formatCurrencyPrecise(base.quote)} (base) / ${formatCurrencyPrecise(agg.quote)} (aggressive) for this stake`;
+    }
+
+    offerEl.addEventListener('input', update);
+    stakeEl.addEventListener('input', update);
+
+    return { update };
+})();
+
+function updateSandbox() { Sandbox.update(); }
 
 
 // ============================================================
