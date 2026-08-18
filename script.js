@@ -31,6 +31,15 @@ const MODEL = Object.freeze({
         ]),
         cpxMresBump: 0.25,
         haircuts: Object.freeze({ screened: 0.10, base: 0.20, unscreened: 0.30 }),
+        // Salary-scale scenarios: growth differential g vs the salary index, compounded
+        // over the level's duration ((1+g)^D). 'cap' is a flat approximation of a 2027
+        // hard-cap regime truncating star-tail outcomes (pending a full CBA module).
+        salaryScenarios: Object.freeze([
+            Object.freeze({ key: 'bear', label: 'Bear −1%/yr', g: -0.01 }),
+            Object.freeze({ key: 'base', label: 'Base (index)', g: 0, recommended: true }),
+            Object.freeze({ key: 'bull', label: 'Bull +1%/yr', g: 0.01 }),
+            Object.freeze({ key: 'cap',  label: 'Cap 2027', flat: 0.85 }),
+        ]),
     }),
 
     // Stake percentages
@@ -83,6 +92,68 @@ const MODEL = Object.freeze({
     rankCoef: -0.012879489864,
     ageCoef: -0.479102776271,
 });
+
+// ============================================================
+// MODEL V8 — Refit 2026-08-18 on the canonical dataset
+// Tweedie GLM (log link), 14 vintages 2001-2014, n=1357 rows / 797 unique
+// players (cluster-robust), fixed 12-yr earnings horizon in 2026$, busts
+// included. Valuation is level-free by design (level prices duration only).
+// ============================================================
+const MODEL_V8 = Object.freeze({
+    intercept: 19.4617,
+    logRankCoef: -0.4677,
+    ageCoef: -0.0264,
+    positionCoefficients: Object.freeze({
+        RHP: 0.0, C: 0.1845, CORNER: 0.3516, LHP: 0.1933, MIF: 0.2296, OF: 0.1861,
+    }),
+    posBucket: Object.freeze({
+        'RHP': 'RHP', 'TWP': 'RHP', 'LHP': 'LHP', 'C': 'C',
+        '1B': 'CORNER', '3B': 'CORNER', 'DH': 'CORNER', 'C/3B': 'C', 'LHP/1B': 'LHP',
+        '2B': 'MIF', 'SS': 'MIF', 'OF': 'OF', 'CF': 'OF', 'LF': 'OF', 'RF': 'OF',
+    }),
+    // Career-equivalent scaling: mature cohorts earn ~30.8% of career money after
+    // year 12, so career mu = 1.444 x the 12-yr-window prediction.
+    tailFactor: 1.444,
+    // Two-part uncertainty: P(zero MLB earnings) by rank, Gamma among earners.
+    bust: Object.freeze({ intercept: -3.7677, logRankCoef: 0.7498 }),
+    shapeEarner: 0.8859,           // phi among earners = 1.129
+});
+
+let engineVersion = 'v8';
+
+function v8Parts(rank, position, age) {
+    const bucket = MODEL_V8.posBucket[position] || 'OF';
+    let logMu = MODEL_V8.intercept
+        + MODEL_V8.logRankCoef * Math.log(rank)
+        + MODEL_V8.ageCoef * age
+        + (MODEL_V8.positionCoefficients[bucket] || 0);
+    const mu = Math.exp(logMu) * MODEL_V8.tailFactor;   // career-equivalent, 2026$
+    const z = MODEL_V8.bust.intercept + MODEL_V8.bust.logRankCoef * Math.log(rank);
+    const p0 = 1 / (1 + Math.exp(-z));
+    return { mu, p0, bucket };
+}
+
+// Survival/quantile factories so both engines share the pricing layer.
+// Each takes the (possibly scenario-adjusted) unconditional mean.
+const EngineDist = {
+    v7: {
+        survival: mu => x => GammaMath.survivalFunction(x, MODEL.shape, mu * MODEL.phi),
+        quantile: mu => q => GammaMath.quantile(q, MODEL.shape, mu * MODEL.phi),
+    },
+    v8: p0 => ({
+        survival: mu => {
+            const muEarner = mu / (1 - p0);
+            const scale = muEarner * (1 / MODEL_V8.shapeEarner);
+            return x => (1 - p0) * GammaMath.survivalFunction(x, MODEL_V8.shapeEarner, scale);
+        },
+        quantile: mu => {
+            const muEarner = mu / (1 - p0);
+            const scale = muEarner * (1 / MODEL_V8.shapeEarner);
+            return q => q <= p0 ? 0 : GammaMath.quantile((q - p0) / (1 - p0), MODEL_V8.shapeEarner, scale);
+        },
+    }),
+};
+
 
 // ============================================================
 // GAMMA DISTRIBUTION — Pure JS implementation
@@ -272,8 +343,18 @@ function discountFactor(level, rReal) {
     return Math.pow(1 + rReal, -D) * (1 + c);
 }
 
-function calculateOffers(mu, level, haircut) {
-    const scale = mu * MODEL.phi;
+// Salary-scale scenario multiplier on expected earnings: (1+g)^duration, or a flat
+// factor for regime scenarios. 'base' returns 1 (earnings track the salary index).
+function scenarioMultiplier(level, scenarioKey) {
+    const sc = MODEL.PRICING.salaryScenarios.find(x => x.key === scenarioKey)
+        || MODEL.PRICING.salaryScenarios.find(x => x.recommended);
+    if (sc.flat !== undefined) return sc.flat;
+    return Math.pow(1 + sc.g, MODEL.PRICING.durationYears[level]);
+}
+
+function calculateOffers(mu, level, haircut, scenarioKey = 'base', survivalFactory = null) {
+    mu = mu * scenarioMultiplier(level, scenarioKey);   // scenario-adjusted expected earnings
+    const survival = (survivalFactory || EngineDist.v7.survival)(mu);
     return MODEL.PRICING.tiers.map(tier => {
         const mRes = tier.mRes + (level === 1 ? MODEL.PRICING.cpxMresBump : 0);
         const df = discountFactor(level, tier.rReal);
@@ -284,9 +365,11 @@ function calculateOffers(mu, level, haircut) {
             offers[stake] = (mu * stake) / mReq;
         });
         // Payout >= offer  <=>  earnings >= mu / mReq, independent of stake size
-        const probBreakEven = GammaMath.survivalFunction(mu / mReq, MODEL.shape, scale);
+        const probBreakEven = survival(mu / mReq);
+        // Payout >= 10x offer — the home-run branch that actually carries a fund
+        const prob10x = survival(10 * mu / mReq);
         return { key: tier.key, label: tier.label, rReal: tier.rReal, recommended: !!tier.recommended,
-                 mRes, df, mReq, offers, probBreakEven };
+                 mRes, df, mReq, offers, probBreakEven, prob10x };
     });
 }
 
@@ -398,17 +481,46 @@ function getAgeLevelInsight(age, level) {
 }
 
 
+// V8 insights: bust risk + model basis. The v7 artifact warnings (age/level)
+// do not apply — v8 has no level term and a uniformly negative age effect.
+function generateInsightsV8(rank, position, level, parts) {
+    const insights = [];
+    insights.push({ type: 'info', title: 'Bust Probability',
+        text: `The refit model estimates a ${formatPercent(parts.p0)} probability of zero MLB earnings for a rank-${rank} prospect (2.3% at #1 rising to 42% at #100, fitted on 2001–2014 outcomes). The valuation already prices this: expected value = ${formatPercent(1 - parts.p0)} × the earner-conditional mean.` });
+    insights.push({ type: 'info', title: 'Model Basis — v8 Refit',
+        text: `Career-equivalent expected earnings in 2026 dollars, fitted on 14 fully-observed Top-100 cohorts (2001–2014, n=1,357, busts included). Rank carries most of the signal (#1 ≈ 8.6× #100); position (${parts.bucket} bucket) and age effects are modest. Level does not enter the valuation — it sets the payout duration (${MODEL.PRICING.durationYears[level]}y) only. Public-information prior: origination and private diligence remain the edge.` });
+    if (rank >= 85) {
+        insights.push({ type: 'warning', title: 'Fringe Rank — Thin Expected Value',
+            text: `At rank ${rank}, bust probability approaches ${formatPercent(parts.p0)} and the model's fair prices sit near the bottom of the market's observed range. Seller-motive screening matters most in this segment.` });
+    }
+    return insights;
+}
+
+
 // ============================================================
 // UI RENDERING
 // ============================================================
 function renderResults(rank, position, age, level, scrollToResults = true) {
-    const mu = predictCareerEarnings(rank, position, age, level);
-    const probs = calculateProbabilities(mu);
-    const quantiles = calculateQuantiles(mu);
+    let mu, dist, parts = null;
+    if (engineVersion === 'v8') {
+        parts = v8Parts(rank, position, age);
+        mu = parts.mu;
+        dist = EngineDist.v8(parts.p0);
+    } else {
+        mu = predictCareerEarnings(rank, position, age, level);
+        dist = EngineDist.v7;
+    }
+    const surv = dist.survival(mu), quant = dist.quantile(mu);
+    const probs = { probMLB: surv(MODEL.THRESHOLD_MLB), probStar: surv(MODEL.THRESHOLD_STAR) };
+    const quantiles = { p25: quant(0.25), median: quant(0.50), p75: quant(0.75) };
     const expectedOnePct = mu * 0.01;
     const haircut = MODEL.PRICING.haircuts[screeningTier];
-    const offers = calculateOffers(mu, level, haircut);
-    const insights = generateInsights(rank, position, age, level, mu, probs);
+    const offers = calculateOffers(mu, level, haircut, salaryScenario, dist.survival);
+    const insights = engineVersion === 'v8'
+        ? generateInsightsV8(rank, position, level, parts)
+        : generateInsights(rank, position, age, level, mu, probs);
+    document.getElementById('engine-badge').textContent =
+        engineVersion === 'v8' ? 'V8 — Refit × NPV' : 'V7.0 — GEE × NPV';
 
     // Profile summary — include player name when inputs still match a loaded prospect
     const player = getMatchingLoadedPlayer(rank, position, age, level);
@@ -438,8 +550,10 @@ function renderResults(rank, position, age, level, scrollToResults = true) {
     document.getElementById('metric-star-sub').textContent = probs.probStar >= 0.40 ? 'High upside' : probs.probStar >= 0.20 ? 'Moderate upside' : 'Limited upside';
 
     // Pricing waterfall (base tier, current screening haircut)
+    const scMult = scenarioMultiplier(level, salaryScenario);
+    const scNote = Math.abs(scMult - 1) > 0.001 ? `× ${scMult.toFixed(3)} salary scenario → ` : '';
     document.getElementById('pricing-waterfall').textContent =
-        `1% EV ${formatCurrency(expectedOnePct)} → × ${baseTier.df.toFixed(3)} time ` +
+        `1% EV ${formatCurrency(expectedOnePct)} → ${scNote}× ${baseTier.df.toFixed(3)} time ` +
         `(D ${MODEL.PRICING.durationYears[level]}y @ ${(baseTier.rReal * 100).toFixed(0)}% real) ` +
         `→ × ${(1 - haircut).toFixed(2)} screening → ÷ ${baseTier.mRes.toFixed(2)} margin ` +
         `= ${formatCurrency(baseTier.offers[0.01])} base target (${baseTier.mReq.toFixed(1)}× EV)`;
@@ -466,6 +580,12 @@ function renderResults(rank, position, age, level, scrollToResults = true) {
             (row.probBreakEven >= 0.65 ? 'prob--green' : row.probBreakEven >= 0.50 ? 'prob--amber' : 'prob--red');
         tr.appendChild(probTd);
 
+        const prob10Td = document.createElement('td');
+        prob10Td.textContent = formatPercent(row.prob10x);
+        prob10Td.className = 'offer-table__prob ' +
+            (row.prob10x >= 0.25 ? 'prob--green' : row.prob10x >= 0.15 ? 'prob--amber' : 'prob--red');
+        tr.appendChild(prob10Td);
+
         tbody.appendChild(tr);
     });
 
@@ -486,7 +606,7 @@ function renderResults(rank, position, age, level, scrollToResults = true) {
     const alertBanner = document.getElementById('alert-banner');
     // Positions with sparse training data (must be a subset of the position dropdown)
     const rarPositions = ['CF', 'DH', 'LF'];
-    if (rarPositions.includes(position)) {
+    if (engineVersion !== 'v8' && rarPositions.includes(position)) {
         alertBanner.classList.add('visible');
         document.getElementById('alert-text').textContent =
             `Position "${position}" has limited representation in the training data. Predictions for this position carry higher uncertainty. Use additional due diligence.`;
@@ -495,7 +615,7 @@ function renderResults(rank, position, age, level, scrollToResults = true) {
     }
 
     // Offer sandbox — recompute against the new player profile
-    sandboxState = { mu, level };
+    sandboxState = { mu, level, dist };
     updateSandbox();
 
     // Show results
@@ -615,11 +735,30 @@ const Lookup = (() => {
 // SCREENING TIER (adverse-selection haircut)
 // ============================================================
 let screeningTier = 'base';
+let salaryScenario = 'base';
 
-document.querySelectorAll('.screen-toggle__btn').forEach(btn => {
+document.querySelectorAll('.engine-toggle__btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        engineVersion = btn.dataset.engine;
+        document.querySelectorAll('.engine-toggle__btn').forEach(b =>
+            b.classList.toggle('screen-toggle__btn--active', b === btn));
+        validateAndCalculate(false);
+    });
+});
+
+document.querySelectorAll('.scenario-toggle__btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+        salaryScenario = btn.dataset.scenario;
+        document.querySelectorAll('.scenario-toggle__btn').forEach(b =>
+            b.classList.toggle('screen-toggle__btn--active', b === btn));
+        validateAndCalculate(false);
+    });
+});
+
+document.querySelectorAll('.screen-toggle__btn[data-haircut]').forEach(btn => {
     btn.addEventListener('click', () => {
         screeningTier = btn.dataset.haircut;
-        document.querySelectorAll('.screen-toggle__btn').forEach(b =>
+        document.querySelectorAll('.screen-toggle__btn[data-haircut]').forEach(b =>
             b.classList.toggle('screen-toggle__btn--active', b === btn));
         validateAndCalculate(false);
     });
@@ -637,7 +776,7 @@ const Sandbox = (() => {
 
     function tierQuote(mu, level, haircut, stake) {
         // Same math as calculateOffers, for an arbitrary stake
-        return calculateOffers(mu, level, haircut).map(t => ({
+        return calculateOffers(mu, level, haircut, salaryScenario, sandboxState.dist.survival).map(t => ({
             key: t.key, label: t.label, quote: (mu * stake) / t.mReq, df: t.df, mReq: t.mReq,
             recommended: t.recommended,
         }));
@@ -645,11 +784,11 @@ const Sandbox = (() => {
 
     function update() {
         if (!sandboxState) return;
-        const { mu, level } = sandboxState;
+        const { mu, level, dist } = sandboxState;
         const offer = parseInt(offerEl.value, 10);
         const stake = parseFloat(stakeEl.value) / 100;
         const haircut = MODEL.PRICING.haircuts[screeningTier];
-        const scale = mu * MODEL.phi;
+        const surv = dist.survival(mu), quant = dist.quantile(mu);
         const D = MODEL.PRICING.durationYears[level];
 
         document.getElementById('sandbox-offer-value').textContent = formatCurrencyPrecise(offer);
@@ -689,20 +828,21 @@ const Sandbox = (() => {
         document.getElementById('sandbox-breakeven').textContent = formatCurrency(breakEven);
         document.getElementById('sandbox-breakeven-sub').textContent =
             `Career earnings where payout = ${formatCurrencyPrecise(offer)}`;
-        const pPayback = GammaMath.survivalFunction(breakEven, MODEL.shape, scale);
+        const pPayback = surv(breakEven);
         const payEl = document.getElementById('sandbox-payback');
         payEl.textContent = formatPercent(pPayback);
         payEl.className = 'sandbox__stat-value ' + (pPayback >= 0.60 ? 'stat--green' : pPayback >= 0.45 ? 'stat--amber' : 'stat--red');
         // NPV break-even: payout arrives at duration D, so PV covers the offer only if
         // earnings reach breakEven / DF — a materially higher bar than cash-on-cash.
-        const pNpvBreakEven = GammaMath.survivalFunction(breakEven / base.df, MODEL.shape, scale);
+        const pNpvBreakEven = surv(breakEven / base.df);
+        const p10x = surv(10 * breakEven);
         document.getElementById('sandbox-payback-sub').textContent =
-            `P(NPV ≥ 0 @ 12% real): ${formatPercent(pNpvBreakEven)} — the discounted bar`;
+            `P(NPV ≥ 0 @ 12% real): ${formatPercent(pNpvBreakEven)} · P(≥10×): ${formatPercent(p10x)}`;
 
         // Payout quantiles on this stake
-        const q25 = GammaMath.quantile(0.25, MODEL.shape, scale) * stake;
-        const q50 = GammaMath.quantile(0.50, MODEL.shape, scale) * stake;
-        const q75 = GammaMath.quantile(0.75, MODEL.shape, scale) * stake;
+        const q25 = quant(0.25) * stake;
+        const q50 = quant(0.50) * stake;
+        const q75 = quant(0.75) * stake;
         document.getElementById('sandbox-range').textContent =
             `${formatCurrency(q25)} – ${formatCurrency(q75)}`;
         document.getElementById('sandbox-range-sub').textContent =
@@ -723,10 +863,16 @@ const Sandbox = (() => {
         verdict.className = 'sandbox__verdict sandbox__verdict--' + cls;
         verdict.textContent = text;
 
-        // Summary line
+        // Summary line + salary-scenario sensitivity band on the base-tier quote
+        const scenarioQuotes = MODEL.PRICING.salaryScenarios.map(sc => {
+            const t = calculateOffers(mu, level, haircut, sc.key, dist.survival).find(x => x.recommended);
+            return t.offers[0.01] * stake * 100;
+        });
+        const scLo = Math.min(...scenarioQuotes), scHi = Math.max(...scenarioQuotes);
         document.getElementById('sandbox-summary').textContent =
             `${formatCurrencyPrecise(offer)} for ${(stake * 100).toFixed(1)}% → needs ${ (offer / (mu * stake) * 100).toFixed(0)}% of expected earnings to land · ` +
-            `model would pay ${formatCurrencyPrecise(cons.quote)} (conservative) / ${formatCurrencyPrecise(base.quote)} (base) / ${formatCurrencyPrecise(agg.quote)} (aggressive) for this stake`;
+            `model would pay ${formatCurrencyPrecise(cons.quote)} (conservative) / ${formatCurrencyPrecise(base.quote)} (base) / ${formatCurrencyPrecise(agg.quote)} (aggressive) for this stake · ` +
+            `base quote across salary scenarios: ${formatCurrencyPrecise(scLo)} – ${formatCurrencyPrecise(scHi)}`;
     }
 
     offerEl.addEventListener('input', update);

@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="Front Row Capital Partners — MLB Prospect Investment Valuation Model powered by GEE regression analysis.">
-    <title>Front Row Capital Partners — Prospect Valuation Model v7.0</title>
+    <title>Front Row Capital Partners — Prospect Valuation Model</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&family=Playfair+Display:wght@700;800&display=swap" rel="stylesheet">
@@ -21,7 +21,7 @@
         </div>
         <p class="header__subtitle">
             MLB Prospect Investment Valuation Model
-            <span class="header__version">v7.0 — GEE + NPV</span>
+            <span class="header__version" id="engine-badge">v8 — Refit + NPV</span>
         </p>
     </header>
 
@@ -121,6 +121,10 @@
             <button type="button" class="btn-calculate" id="btn-calculate">
                 Calculate Valuation
             </button>
+            <div class="screen-toggle" role="radiogroup" aria-label="Valuation engine" style="margin-top:14px">
+                <button type="button" class="engine-toggle__btn screen-toggle__btn screen-toggle__btn--active" data-engine="v8">Engine: v8 Refit</button>
+                <button type="button" class="engine-toggle__btn screen-toggle__btn" data-engine="v7">v7 Legacy (GEE)</button>
+            </div>
             <span class="keyboard-hint">or press <kbd>Enter</kbd></span>
         </div>
     </section>
@@ -209,6 +213,12 @@
                     <button type="button" class="screen-toggle__btn screen-toggle__btn--active" data-haircut="base">Base −20%</button>
                     <button type="button" class="screen-toggle__btn" data-haircut="unscreened">Unscreened −30%</button>
                 </div>
+                <div class="screen-toggle" role="radiogroup" aria-label="Salary-scale scenario">
+                    <button type="button" class="scenario-toggle__btn screen-toggle__btn" data-scenario="bear">Bear −1%/yr</button>
+                    <button type="button" class="scenario-toggle__btn screen-toggle__btn screen-toggle__btn--active" data-scenario="base">Salary: Index</button>
+                    <button type="button" class="scenario-toggle__btn screen-toggle__btn" data-scenario="bull">Bull +1%/yr</button>
+                    <button type="button" class="scenario-toggle__btn screen-toggle__btn" data-scenario="cap">Cap 2027</button>
+                </div>
             </div>
             <p class="pricing-waterfall" id="pricing-waterfall"></p>
             <div class="offer-table-wrap">
@@ -220,6 +230,7 @@
                             <th scope="col">5% Stake</th>
                             <th scope="col">10% Stake</th>
                             <th scope="col">P(≥1× Payback)</th>
+                            <th scope="col">P(≥10× Payback)</th>
                         </tr>
                     </thead>
                     <tbody id="offer-tbody"></tbody>
@@ -299,7 +310,8 @@
     <footer class="footer">
         <p class="footer__title">Methodology & Data</p>
         <p>
-            GEE regression (Gamma family, log link) fitted on 800 observations from 495 unique prospects ranked in the FanGraphs Top 100 (2012–2019).
+            v8 (default): Tweedie GLM (log link) refit on the canonical dataset — 14 fully-observed Top-100 cohorts (2001–2014), 1,357 observations from 797 unique prospects (cluster-robust), fixed 12-year earnings horizon in 2026 dollars, busts included; career-equivalent scaling ×1.444; two-part uncertainty (rank-based bust probability + Gamma among earners, shape 0.886); valuation is level-free (level sets payout duration only). Out-of-sample Spearman 0.364 (train 2001–2011, test 2013–2014).
+            v7 (legacy): GEE regression (Gamma family, log link) fitted on 800 observations from 495 unique prospects ranked in the FanGraphs Top 100 (2012–2019).
             Career earnings inflation-adjusted using MLB average salaries normalized to 2025 dollars. Model predictors: Rank (continuous), Position, Age, Highest Minor League Level, and Age × Level interaction.
             Probabilities and percentile ranges derived from the fitted Gamma distribution. R² (Corr²) = 0.1936 — predictions carry substantial uncertainty; the P25–P75 range and P(≥1× Payback) column reflect this.
             Target offers use upfront-cash NPV pricing: predicted earnings are in real 2025 dollars, discounted at a real rate (base 12%, aggressive 10%, conservative 15%) over the level's earnings-weighted duration (7.2y MLB-debuted to 12.7y CPX/DSL), with an adverse-selection haircut (10–30% by screening tier) and a residual margin (1.5–2.0×, +0.25 at CPX/DSL) for model error, deal costs, and collection risk. Each risk is priced exactly once; bust risk is already in the Gamma mean.
