@@ -24,21 +24,22 @@ const MODEL = Object.freeze({
         durationYears: Object.freeze({ 1: 12.7, 2: 11.2, 3: 10.2, 4: 9.2, 5: 8.2, 6: 7.2 }),
         // Spread-cash-flow convexity premium over lump-sum discounting, by real rate
         convexity: Object.freeze([[0.08, 0.020], [0.12, 0.042], [0.15, 0.063]]),
+        // Margins carry everything that is not bust risk or time value: model error,
+        // deal costs, and profit. (2026-08-18: the screening-tier toggle was retired —
+        // FRC screens every athlete, so the former 10% screened-tier information
+        // discount is folded in here permanently: mRes = old mRes / 0.90.)
         tiers: Object.freeze([
-            Object.freeze({ key: 'aggressive', label: 'Aggressive', rReal: 0.10, mRes: 1.50 }),
-            Object.freeze({ key: 'base', label: 'Base', rReal: 0.12, mRes: 1.75, recommended: true }),
-            Object.freeze({ key: 'conservative', label: 'Conservative', rReal: 0.15, mRes: 2.00 }),
+            Object.freeze({ key: 'aggressive', label: 'Aggressive', rReal: 0.10, mRes: 1.6667 }),
+            Object.freeze({ key: 'base', label: 'Base', rReal: 0.12, mRes: 1.9444, recommended: true }),
+            Object.freeze({ key: 'conservative', label: 'Conservative', rReal: 0.15, mRes: 2.2222 }),
         ]),
-        cpxMresBump: 0.25,
-        haircuts: Object.freeze({ screened: 0.10, base: 0.20, unscreened: 0.30 }),
-        // Salary-scale scenarios: growth differential g vs the salary index, compounded
-        // over the level's duration ((1+g)^D). 'cap' is a flat approximation of a 2027
-        // hard-cap regime truncating star-tail outcomes (pending a full CBA module).
+        cpxMresBump: 0.2778,
+        // Salary outlook: Trend = salaries keep growing the way the historical index
+        // (2009-2018 data) already embodies — no adjustment. Bull = pay scale outgrows
+        // trend by g per year, compounded over the level's duration ((1+g)^D).
         salaryScenarios: Object.freeze([
-            Object.freeze({ key: 'bear', label: 'Bear −1%/yr', g: -0.01 }),
-            Object.freeze({ key: 'base', label: 'Base (index)', g: 0, recommended: true }),
-            Object.freeze({ key: 'bull', label: 'Bull +1%/yr', g: 0.01 }),
-            Object.freeze({ key: 'cap',  label: 'Cap 2027', flat: 0.85 }),
+            Object.freeze({ key: 'trend', label: 'Trend', g: 0, recommended: true }),
+            Object.freeze({ key: 'bull', label: 'Bull +2%/yr', g: 0.02 }),
         ]),
     }),
 
@@ -352,14 +353,14 @@ function scenarioMultiplier(level, scenarioKey) {
     return Math.pow(1 + sc.g, MODEL.PRICING.durationYears[level]);
 }
 
-function calculateOffers(mu, level, haircut, scenarioKey = 'base', survivalFactory = null) {
+function calculateOffers(mu, level, scenarioKey = 'trend', survivalFactory = null) {
     mu = mu * scenarioMultiplier(level, scenarioKey);   // scenario-adjusted expected earnings
     const survival = (survivalFactory || EngineDist.v7.survival)(mu);
     return MODEL.PRICING.tiers.map(tier => {
         const mRes = tier.mRes + (level === 1 ? MODEL.PRICING.cpxMresBump : 0);
         const df = discountFactor(level, tier.rReal);
-        // Required multiple on raw expected earnings implied by the three levers
-        const mReq = mRes / ((1 - haircut) * df);
+        // Required multiple on raw expected earnings implied by the two levers
+        const mReq = mRes / df;
         const offers = {};
         MODEL.STAKES.forEach(stake => {
             offers[stake] = (mu * stake) / mReq;
@@ -514,8 +515,7 @@ function renderResults(rank, position, age, level, scrollToResults = true) {
     const probs = { probMLB: surv(MODEL.THRESHOLD_MLB), probStar: surv(MODEL.THRESHOLD_STAR) };
     const quantiles = { p25: quant(0.25), median: quant(0.50), p75: quant(0.75) };
     const expectedOnePct = mu * 0.01;
-    const haircut = MODEL.PRICING.haircuts[screeningTier];
-    const offers = calculateOffers(mu, level, haircut, salaryScenario, dist.survival);
+    const offers = calculateOffers(mu, level, salaryScenario, dist.survival);
     const insights = engineVersion === 'v8'
         ? generateInsightsV8(rank, position, level, parts)
         : generateInsights(rank, position, age, level, mu, probs);
@@ -550,13 +550,49 @@ function renderResults(rank, position, age, level, scrollToResults = true) {
     document.getElementById('metric-star-sub').textContent = probs.probStar >= 0.40 ? 'High upside' : probs.probStar >= 0.20 ? 'Moderate upside' : 'Limited upside';
 
     // Pricing waterfall (base tier, current screening haircut)
+    // Pricing waterfall: plain-English steps from expected earnings to the offer,
+    // each with the running dollar value and a bar showing what remains.
     const scMult = scenarioMultiplier(level, salaryScenario);
-    const scNote = Math.abs(scMult - 1) > 0.001 ? `× ${scMult.toFixed(3)} salary scenario → ` : '';
-    document.getElementById('pricing-waterfall').textContent =
-        `1% EV ${formatCurrency(expectedOnePct)} → ${scNote}× ${baseTier.df.toFixed(3)} time ` +
-        `(D ${MODEL.PRICING.durationYears[level]}y @ ${(baseTier.rReal * 100).toFixed(0)}% real) ` +
-        `→ × ${(1 - haircut).toFixed(2)} screening → ÷ ${baseTier.mRes.toFixed(2)} margin ` +
-        `= ${formatCurrency(baseTier.offers[0.01])} base target (${baseTier.mReq.toFixed(1)}× EV)`;
+    const scLabel = (MODEL.PRICING.salaryScenarios.find(x => x.key === salaryScenario) || {}).label || '';
+    const D = MODEL.PRICING.durationYears[level];
+    const steps = [];
+    let running = expectedOnePct;
+    steps.push({ label: 'What 1% of his expected career earnings is worth',
+        sub: 'Model projection, today\u2019s dollars \u2014 bust risk already inside this number',
+        factor: '', amount: running });
+    if (Math.abs(scMult - 1) > 0.001) {
+        running *= scMult;
+        steps.push({ label: `Salary outlook: ${scLabel}`,
+            sub: 'MLB pay scale assumed to outgrow the 2009\u20132018 trend',
+            factor: `\u00d7 ${scMult.toFixed(2)}`, amount: running });
+    }
+    running *= baseTier.df;
+    steps.push({ label: `The money arrives ~${D} years from now`,
+        sub: `Discounted at ${(baseTier.rReal * 100).toFixed(0)}% per year while we wait`,
+        factor: `\u00d7 ${baseTier.df.toFixed(2)}`, amount: running });
+    running /= baseTier.mRes;
+    steps.push({ label: 'Our cushion for being wrong',
+        sub: 'Model error, deal costs, and profit \u2014 every athlete is screened, so no separate information discount',
+        factor: `\u00f7 ${baseTier.mRes.toFixed(2)}`, amount: running, final: true,
+        finalLabel: 'What we offer for 1%' });
+    const start = steps[0].amount;
+    const wf = document.getElementById('pricing-waterfall');
+    wf.innerHTML = '';
+    steps.forEach(st => {
+        const row = document.createElement('div');
+        row.className = 'waterfall__row' + (st.final ? ' waterfall__row--final' : '');
+        const pct = Math.max(1.5, st.amount / start * 100);
+        row.innerHTML = `
+            <div class="waterfall__label">${st.final ? st.finalLabel : st.label}<small>${st.final ? st.label + ' \u2014 ' + st.sub : st.sub}</small></div>
+            <div class="waterfall__factor">${st.factor}</div>
+            <div class="waterfall__amount">${formatCurrencyPrecise(Math.round(st.amount))}</div>
+            <div class="waterfall__bar"><div class="waterfall__bar-fill" style="width:${pct}%"></div></div>`;
+        wf.appendChild(row);
+    });
+    const note = document.createElement('p');
+    note.className = 'waterfall__note';
+    note.textContent = `Put differently: we pay $1 up front for every $${baseTier.mReq.toFixed(0)} of expected earnings \u2014 the ${baseTier.mReq.toFixed(1)}\u00d7 required multiple of the ${baseTier.label.toLowerCase()} tier. Tighter tiers below demand more.`;
+    wf.appendChild(note);
 
     // Offer table
     const tbody = document.getElementById('offer-tbody');
@@ -732,10 +768,9 @@ const Lookup = (() => {
 
 
 // ============================================================
-// SCREENING TIER (adverse-selection haircut)
+// PRICING LEVERS
 // ============================================================
-let screeningTier = 'base';
-let salaryScenario = 'base';
+let salaryScenario = 'trend';
 
 document.querySelectorAll('.engine-toggle__btn').forEach(btn => {
     btn.addEventListener('click', () => {
@@ -755,15 +790,6 @@ document.querySelectorAll('.scenario-toggle__btn').forEach(btn => {
     });
 });
 
-document.querySelectorAll('.screen-toggle__btn[data-haircut]').forEach(btn => {
-    btn.addEventListener('click', () => {
-        screeningTier = btn.dataset.haircut;
-        document.querySelectorAll('.screen-toggle__btn[data-haircut]').forEach(b =>
-            b.classList.toggle('screen-toggle__btn--active', b === btn));
-        validateAndCalculate(false);
-    });
-});
-
 
 // ============================================================
 // OFFER SANDBOX — custom deal structuring
@@ -774,9 +800,9 @@ const Sandbox = (() => {
     const offerEl = document.getElementById('sandbox-offer');
     const stakeEl = document.getElementById('sandbox-stake');
 
-    function tierQuote(mu, level, haircut, stake) {
+    function tierQuote(mu, level, stake) {
         // Same math as calculateOffers, for an arbitrary stake
-        return calculateOffers(mu, level, haircut, salaryScenario, sandboxState.dist.survival).map(t => ({
+        return calculateOffers(mu, level, salaryScenario, sandboxState.dist.survival).map(t => ({
             key: t.key, label: t.label, quote: (mu * stake) / t.mReq, df: t.df, mReq: t.mReq,
             recommended: t.recommended,
         }));
@@ -787,7 +813,6 @@ const Sandbox = (() => {
         const { mu, level, dist } = sandboxState;
         const offer = parseInt(offerEl.value, 10);
         const stake = parseFloat(stakeEl.value) / 100;
-        const haircut = MODEL.PRICING.haircuts[screeningTier];
         const surv = dist.survival(mu), quant = dist.quantile(mu);
         const D = MODEL.PRICING.durationYears[level];
 
@@ -796,7 +821,7 @@ const Sandbox = (() => {
 
         // Price per 1% vs the base-tier model quote
         const perPct = offer / (stake * 100);
-        const quotes = tierQuote(mu, level, haircut, stake);
+        const quotes = tierQuote(mu, level, stake);
         const base = quotes.find(q => q.recommended);
         const cons = quotes.find(q => q.key === 'conservative');
         const agg = quotes.find(q => q.key === 'aggressive');
@@ -865,7 +890,7 @@ const Sandbox = (() => {
 
         // Summary line + salary-scenario sensitivity band on the base-tier quote
         const scenarioQuotes = MODEL.PRICING.salaryScenarios.map(sc => {
-            const t = calculateOffers(mu, level, haircut, sc.key, dist.survival).find(x => x.recommended);
+            const t = calculateOffers(mu, level, sc.key, dist.survival).find(x => x.recommended);
             return t.offers[0.01] * stake * 100;
         });
         const scLo = Math.min(...scenarioQuotes), scHi = Math.max(...scenarioQuotes);

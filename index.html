@@ -205,22 +205,15 @@
                     Target Offers — Upfront Cash
                     <button type="button" class="field__info" tabindex="0" aria-label="About target offer pricing">
                         ?
-                        <span class="tooltip-text">Offer = stake × predicted earnings × (1 − screening haircut) × time discount ÷ residual margin. Each risk is priced once: bust risk is inside the prediction, time and league risk in the real discount rate, seller private information in the haircut, model error in the margin.</span>
+                        <span class="tooltip-text">Offer = stake × predicted earnings × time discount ÷ margin. Each risk is priced once: bust risk is inside the prediction, time and league risk in the real discount rate, and model error, deal costs, and profit in the margin. Every athlete is screened, so no separate information discount applies.</span>
                     </button>
                 </h3>
-                <div class="screen-toggle" role="radiogroup" aria-label="Adverse-selection screening tier">
-                    <button type="button" class="screen-toggle__btn" data-haircut="screened">Screened −10%</button>
-                    <button type="button" class="screen-toggle__btn screen-toggle__btn--active" data-haircut="base">Base −20%</button>
-                    <button type="button" class="screen-toggle__btn" data-haircut="unscreened">Unscreened −30%</button>
-                </div>
-                <div class="screen-toggle" role="radiogroup" aria-label="Salary-scale scenario">
-                    <button type="button" class="scenario-toggle__btn screen-toggle__btn" data-scenario="bear">Bear −1%/yr</button>
-                    <button type="button" class="scenario-toggle__btn screen-toggle__btn screen-toggle__btn--active" data-scenario="base">Salary: Index</button>
-                    <button type="button" class="scenario-toggle__btn screen-toggle__btn" data-scenario="bull">Bull +1%/yr</button>
-                    <button type="button" class="scenario-toggle__btn screen-toggle__btn" data-scenario="cap">Cap 2027</button>
+                <div class="screen-toggle" role="radiogroup" aria-label="Salary outlook">
+                    <button type="button" class="scenario-toggle__btn screen-toggle__btn screen-toggle__btn--active" data-scenario="trend">Salary: Trend</button>
+                    <button type="button" class="scenario-toggle__btn screen-toggle__btn" data-scenario="bull">Bull +2%/yr</button>
                 </div>
             </div>
-            <p class="pricing-waterfall" id="pricing-waterfall"></p>
+            <div class="waterfall" id="pricing-waterfall" aria-label="How the offer is built from expected earnings"></div>
             <div class="offer-table-wrap">
                 <table class="offer-table" id="offer-table" aria-label="Target upfront-cash offers by pricing tier">
                     <thead>
@@ -246,7 +239,7 @@
                     Offer Sandbox — Structure a Custom Deal
                     <button type="button" class="field__info" tabindex="0" aria-label="About the offer sandbox">
                         ?
-                        <span class="tooltip-text">Drag the sliders to test any upfront payment and stake combination against this player's modeled earnings distribution. The verdict compares your price per 1% with the model's tier quotes at the current screening haircut; the stats show what the deal returns if earnings land at the mean, and the probability it pays back at all.</span>
+                        <span class="tooltip-text">Drag the sliders to test any upfront payment and stake combination against this player's modeled earnings distribution. The verdict compares your price per 1% with the model's tier quotes; the stats show what the deal returns if earnings land at the mean, and the probability it pays back at all.</span>
                     </button>
                 </h3>
                 <div class="sandbox__verdict" id="sandbox-verdict" role="status"></div>
@@ -314,7 +307,7 @@
             v7 (legacy): GEE regression (Gamma family, log link) fitted on 800 observations from 495 unique prospects ranked in the FanGraphs Top 100 (2012–2019).
             Career earnings inflation-adjusted using MLB average salaries normalized to 2025 dollars. Model predictors: Rank (continuous), Position, Age, Highest Minor League Level, and Age × Level interaction.
             Probabilities and percentile ranges derived from the fitted Gamma distribution. R² (Corr²) = 0.1936 — predictions carry substantial uncertainty; the P25–P75 range and P(≥1× Payback) column reflect this.
-            Target offers use upfront-cash NPV pricing: predicted earnings are in real 2025 dollars, discounted at a real rate (base 12%, aggressive 10%, conservative 15%) over the level's earnings-weighted duration (7.2y MLB-debuted to 12.7y CPX/DSL), with an adverse-selection haircut (10–30% by screening tier) and a residual margin (1.5–2.0×, +0.25 at CPX/DSL) for model error, deal costs, and collection risk. Each risk is priced exactly once; bust risk is already in the Gamma mean.
+            Target offers use upfront-cash NPV pricing: predicted earnings are in real 2025 dollars, discounted at a real rate (base 12%, aggressive 10%, conservative 15%) over the level's earnings-weighted duration (7.2y MLB-debuted to 12.7y CPX/DSL), with a residual margin (1.67–2.22×, +0.28 at CPX/DSL) covering model error, deal costs, and collection risk — every athlete is screened, so no separate information discount applies. Each risk is priced exactly once; bust risk is already in the Gamma mean.
             Prospect lookup data: FanGraphs "The Board" 2026 report (retrieved July 2026). This tool provides estimates for informational purposes; all investment decisions should incorporate additional due diligence.
         </p>
     </footer>
